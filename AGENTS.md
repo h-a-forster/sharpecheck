@@ -129,9 +129,17 @@ Done:
   (Holm, BH, Romano-Wolf stepdown, `arch` MCS wrapper). BLdP 2014 DSR, E[max] and LZL
   pFDR/oFDR reference values reproduced; equicorrelated max moments agree with a
   10^5-draw simulation.
+- M5 (2026-10-24): `montecarlo.dgps` (six coverage DGPs with closed-form moments, the six
+  LW 2008 pair DGPs, equicorrelated trials), `montecarlo.runner` (unit builder, hashed
+  per-unit seeds, coverage/difference/dsr work functions, timing pilot), `montecarlo.report`
+  (Wilson intervals, Holm-flagged coverage, LW Table 1 agreement, heatmap), CLI `mc run |
+  pilot | report`, `scripts/run_with_retry.py`. Identical unit results with 1 and 3
+  workers; resume skips finished units. Pilot projected 117 CPU-min / 39 wall-min, over
+  budget, so `coverage.boot_reps` went 1000 -> 500 (floor) and `dsr.reps` 2000 -> 1000
+  (recorded in `results/mc-quick/calibration.json`).
 
 Next:
-- M5-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
+- M6-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
   Monte Carlo is launched.
 
 Open questions recorded for later milestones:

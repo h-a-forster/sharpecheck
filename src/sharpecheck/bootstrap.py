@@ -89,13 +89,25 @@ def studentized_sr_boot(
     b = _check_block(t, block)
     rng = np.random.default_rng(seed)
     sr_hat, se_hat, _ = hac_se(a, prewhiten=True)
-    idx = circular_block_indices(t, b, n_boot, rng)
-    sr_star, h = _projected_block_sums(a[idx], b)
+    return sr_hat, se_hat, sr_tstar(a, b, n_boot, rng, sr_hat)
+
+
+def sr_tstar(
+    a: FloatArray, block: int, n_boot: int, rng: np.random.Generator, sr_hat: float
+) -> FloatArray:
+    """Signed studentized bootstrap statistics ``(SR*_m - sr_hat) / se*_m`` (no checks).
+
+    Low-level helper for the Monte Carlo, which already has ``sr_hat``; non-finite
+    entries are ``nan``.
+    """
+    t = a.size
+    idx = circular_block_indices(t, block, n_boot, rng)
+    sr_star, h = _projected_block_sums(a[idx], block)
     with np.errstate(divide="ignore", invalid="ignore"):
         se_star = np.sqrt(np.mean(h * h, axis=1) / t)
         tstar = (sr_star - sr_hat) / se_star
     tstar[~np.isfinite(tstar)] = np.nan
-    return sr_hat, se_hat, tstar
+    return tstar
 
 
 def block_se_sr(x: ArrayLike, block: int) -> float:
@@ -137,15 +149,26 @@ def studentized_diff_boot(
     se = np.empty(k - 1)
     for j in range(1, k):
         delta[j - 1], se[j - 1] = lw_hac_se(a[:, j], a[:, 0], prewhiten=prewhiten)
-    idx = circular_block_indices(t, b, n_boot, rng)
-    sr_star, h = _projected_block_sums(a[idx], b)  # (B, k), (B, l, k)
+    return delta, se, diff_tstar(a, b, n_boot, rng, delta)
+
+
+def diff_tstar(
+    a: FloatArray, block: int, n_boot: int, rng: np.random.Generator, delta_hat: FloatArray
+) -> FloatArray:
+    """Signed studentized bootstrap statistics for ``SR_j - SR_0`` (no checks).
+
+    ``a`` is (T x k) with the benchmark in column 0; returns (n_boot x k-1).
+    """
+    t = a.shape[0]
+    idx = circular_block_indices(t, block, n_boot, rng)
+    sr_star, h = _projected_block_sums(a[idx], block)  # (B, k), (B, l, k)
     dstar = sr_star[:, 1:] - sr_star[:, :1]
     hd = h[:, :, 1:] - h[:, :, :1]
     with np.errstate(divide="ignore", invalid="ignore"):
         se_star = np.sqrt(np.mean(hd * hd, axis=1) / t)
-        tstar = (dstar - delta[None, :]) / se_star
+        tstar = (dstar - np.asarray(delta_hat)[None, :]) / se_star
     tstar[~np.isfinite(tstar)] = np.nan
-    return delta, se, tstar
+    return tstar
 
 
 def _stationary_indices(nobs: int, mean_block: float, rng: np.random.Generator) -> np.ndarray:

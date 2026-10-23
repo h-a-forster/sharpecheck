@@ -1,0 +1,21 @@
+{
+  "config": "configs/mc_quick.toml",
+  "pilot_wall_seconds": 72.4,
+  "workers": 3,
+  "projected_cpu_minutes": 117.3,
+  "projected_cpu_minutes_by_experiment": {
+    "coverage": 61.8,
+    "difference": 22.9,
+    "dsr": 32.5
+  },
+  "projected_wall_minutes": 39.1,
+  "note": "per-unit seconds measured in worker processes on a shared machine",
+  "adjustment": {
+    "reason": "projected wall time 39.1 min exceeded the 35 min budget",
+    "coverage.boot_reps": "1000 -> 500 (floor 500)",
+    "dsr.reps": "2000 -> 1000",
+    "projected_cpu_minutes_after": 75.6,
+    "projected_wall_minutes_after": 25.2,
+    "split": "pilot coverage time per 50 reps summed over cells: bootstrap 152.3 s, other 16.5 s"
+  }
+}

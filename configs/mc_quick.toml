@@ -14,7 +14,8 @@ sr = [0.0, 0.1, 0.3]
 nobs = [60, 120, 250, 1000, 2520]
 methods = ["iid_normal", "exact_nct", "mertens", "ar1", "hac", "hac_pw", "boot_ts"]
 reps = 2000
-boot_reps = 1000                     # boot_ts runs on the first boot_reps replications
+boot_reps = 500                      # boot_ts runs on the first boot_reps replications;
+                                     # lowered from 1000 after the pilot (calibration.json)
 n_boot = 499
 block = "cube-root"                  # round(T ** (1/3))
 psr_variants = ["observed", "null"]
@@ -32,7 +33,7 @@ n_trials = [10, 100, 1000]
 rho = [0.0, 0.3, 0.7]
 nobs = [250, 1250]
 dists = ["normal", "t5"]
-reps = 2000
+reps = 1000                          # lowered from 2000 after the pilot (calibration.json)
 rules = [
     "dsr_trueN_estV", "dsr_trueN_oracleV", "dsr_N/10", "dsr_impliedN",
     "psr_best", "holm_psr", "lzl_max",
