@@ -57,8 +57,8 @@ optimised portfolios" application on Ken French data.
 | `src/sharpecheck/hac.py` | kernels, Andrews bandwidth, prewhitening | done (M2) |
 | `src/sharpecheck/bootstrap.py` | circular block bootstrap, studentized stats, calibration | done (M3) |
 | `src/sharpecheck/compare.py` | JKM, LW HAC, LW bootstrap | done (M3) |
-| `src/sharpecheck/deflated.py` | expected max, DSR, implied N, pFDR/oFDR | M4 |
-| `src/sharpecheck/multiple.py` | Holm, BH, Romano-Wolf, MCS wrapper | M4, M7 |
+| `src/sharpecheck/deflated.py` | expected max, DSR, implied N, pFDR/oFDR | done (M4) |
+| `src/sharpecheck/multiple.py` | Holm, BH, Romano-Wolf, MCS wrapper | done (M4) |
 | `src/sharpecheck/montecarlo/` | DGPs, runner, report | M5, M6 |
 | `src/sharpecheck/data.py` | Ken French fetch, cache, parse | M7 |
 | `src/sharpecheck/portfolio/` | allocation rules, rolling backtest | M7 |
@@ -124,9 +124,14 @@ Done:
   the sample-covariance delta method (= Mertens); HAC SE for Gaussian AR(1) within 3% of
   sqrt(1.505417/T) at T = 100,000. Timing (one thread, B = 499): bootstrap 2/8/30/64 ms,
   HAC + HAC-PW pair 0.8/1.2/1.7/3.4 ms at T = 60/250/1000/2520.
+- M4 (2026-10-24): `deflated` (Gumbel and exact expected maximum with equicorrelation,
+  variance of the maximum, DSR, `dsr_test`, implied trials, pFDR, oFDR) and `multiple`
+  (Holm, BH, Romano-Wolf stepdown, `arch` MCS wrapper). BLdP 2014 DSR, E[max] and LZL
+  pFDR/oFDR reference values reproduced; equicorrelated max moments agree with a
+  10^5-draw simulation.
 
 Next:
-- M4-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
+- M5-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
   Monte Carlo is launched.
 
 Open questions recorded for later milestones:
