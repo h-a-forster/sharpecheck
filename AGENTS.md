@@ -54,7 +54,7 @@ optimised portfolios" application on Ken French data.
 | `src/sharpecheck/checkpoint.py` | unit store, progress log, capped pool | done (M1) |
 | `src/sharpecheck/moments.py` | sample moments | done (M1) |
 | `src/sharpecheck/single.py` | single-SR intervals, PSR, MinTRL, power, annualize | M1, M3 |
-| `src/sharpecheck/hac.py` | kernels, Andrews bandwidth, prewhitening | M2 |
+| `src/sharpecheck/hac.py` | kernels, Andrews bandwidth, prewhitening | done (M2) |
 | `src/sharpecheck/bootstrap.py` | circular block bootstrap, studentized stats, calibration | M3, M7 |
 | `src/sharpecheck/compare.py` | JKM, LW HAC, LW bootstrap | M3 |
 | `src/sharpecheck/deflated.py` | expected max, DSR, implied N, pFDR/oFDR | M4 |
@@ -113,9 +113,13 @@ Done:
   brentq and a vectorised bisection), PSR in both conventions, MinTRL, critical SR, power,
   annualize. All DESIGN 7.1 single-SR values reproduced by package tests; slow exact_nct
   coverage test passes.
+- M2 (2026-10-24): `hac` (Bartlett/Parzen/QS weights, FFT autocovariances, Andrews
+  bandwidth, Andrews-Monahan prewhitening). QS equals `arch` at fixed bandwidth to 1e-10;
+  Bartlett/Parzen equal `arch` with `S_T = arch bandwidth + 1` (arch's convention);
+  prewhitened and plain QS within 3% of the true VAR(1) long-run covariance at T = 200,000.
 
 Next:
-- M2-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
+- M3-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
   Monte Carlo is launched.
 
 Open questions recorded for later milestones:
