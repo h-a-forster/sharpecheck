@@ -1,0 +1,46 @@
+# Monte Carlo of coverage and size, full profile. See docs/DESIGN.md section 6.4.
+# Projected 15-25 CPU-hours (a projection from the scaffold microbenchmark, not a
+# measurement). Resumable: rerun the same command after an interruption.
+#   uv run sharpecheck mc run --config configs/mc_full.toml --workers 3
+name = "mc-full"
+seed = 20261024
+level = 0.95
+chunk = 500
+
+[coverage]
+dgps = ["normal", "t5", "garch-t7", "ar1-0.2", "regime", "crash"]
+sr = [0.0, 0.1, 0.3, 0.5]
+nobs = [60, 120, 250, 500, 1000, 2520]
+methods = ["iid_normal", "exact_nct", "mertens", "ar1", "hac", "hac_pw", "boot_ts"]
+reps = 10000
+boot_reps = 10000
+n_boot = 999
+block = "cube-root"
+psr_variants = ["observed", "null"]
+
+[difference]
+dgps = ["normal-iid", "t6-iid", "normal-garch", "t6-garch", "normal-var", "t6-var"]
+nobs = 120
+reps = 5000
+n_boot = 499
+methods = [
+    "jkm", "hac", "hac_pw", "boot_iid",
+    "boot_ts_b2", "boot_ts_b4", "boot_ts_b6", "boot_ts_b8", "boot_ts_b10",
+]
+alphas = [0.01, 0.05, 0.10]
+
+[dsr]
+n_trials = [10, 100, 1000, 10000]
+rho = [0.0, 0.3, 0.7]
+nobs = [250, 1250]
+dists = ["normal", "t5"]
+reps = 5000
+rules = [
+    "dsr_trueN_estV", "dsr_trueN_oracleV", "dsr_N/10", "dsr_impliedN",
+    "psr_best", "holm_psr", "lzl_max",
+]
+alpha = 0.05
+
+[run]
+workers = 3
+out_dir = "runs/mc-full"

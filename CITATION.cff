@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use sharpecheck, please cite it as below."
+title: sharpecheck
+abstract: >-
+  Sharpe-ratio inference in Python (iid, Mertens/Opdyke, AR(1)-adjusted, HAC,
+  studentized block bootstrap, exact noncentral t, PSR, MinTRL, DSR, Ledoit-Wolf
+  difference tests, Romano-Wolf stepdown), with a Monte Carlo check of interval
+  coverage and test size.
+type: software
+authors:
+  - name: sharpecheck contributors
+repository-code: "https://github.com/h-a-forster/sharpecheck"
+license: MIT
+version: 0.1.0.dev0
+keywords:
+  - sharpe ratio
+  - hypothesis testing
+  - bootstrap
+  - multiple testing
+references:
+  - type: article
+    authors:
+      - family-names: Ledoit
+        given-names: Olivier
+      - family-names: Wolf
+        given-names: Michael
+    title: Robust performance hypothesis testing with the Sharpe ratio
+    journal: Journal of Empirical Finance
+    year: 2008
+    doi: 10.1016/j.jempfin.2008.03.002
+  - type: article
+    authors:
+      - family-names: Lo
+        given-names: Andrew W.
+    title: The statistics of Sharpe ratios
+    journal: Financial Analysts Journal
+    year: 2002
+  - type: article
+    authors:
+      - family-names: Bailey
+        given-names: David H.
+      - family-names: López de Prado
+        given-names: Marcos
+    title: "The deflated Sharpe ratio: correcting for selection bias, backtest overfitting and non-normality"
+    journal: Journal of Portfolio Management
+    year: 2014

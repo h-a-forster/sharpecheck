@@ -1,0 +1,34 @@
+# 1/N versus optimised portfolios on Ken French data. See docs/DESIGN.md section 5.
+# Pre-registered: primary family = 4 rules x 2 datasets vs 1/N, full out-of-sample period,
+# LW studentized block bootstrap, Romano-Wolf adjusted, two-sided, alpha = 0.05.
+name = "portfolio"
+seed = 20261024
+
+[data]
+datasets = ["ind10", "ff25"]
+factors = "ff3"
+section = "value-weighted"
+start = "1963-07"
+cache_dir = "data"
+
+[backtest]
+window = 120
+rules = ["equal", "inverse_vol", "gmv_sample", "gmv_lw", "hrp"]
+benchmark = "equal"
+
+[inference]
+periods = [
+    { name = "full", start = "1973-07", end = "last" },
+    { name = "dgu-era", start = "1973-07", end = "2004-11" },
+    { name = "post-publication", start = "2004-12", end = "last" },
+]
+primary_period = "full"
+n_boot = 4999
+block = "cube-root"
+block_sensitivity = [1, 2, 4, 6, 8, 10]
+calibrate_block = false              # "should": LW Algorithm 3.1, K = 1000 pseudo series
+alpha = 0.05
+
+[run]
+workers = 3
+out_dir = "runs/portfolio"

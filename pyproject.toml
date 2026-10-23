@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sharpecheck"
+version = "0.1.0.dev0"
+description = "Sharpe-ratio inference in Python (iid, Mertens/Opdyke, AR(1)-adjusted, HAC, studentized block bootstrap, exact noncentral t, PSR, MinTRL, DSR, Ledoit-Wolf difference tests, Romano-Wolf stepdown), with a Monte Carlo check of interval coverage and test size."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "sharpecheck contributors" }]
+keywords = [
+    "sharpe-ratio", "performance-evaluation", "hypothesis-testing", "bootstrap", "hac",
+    "deflated-sharpe-ratio", "multiple-testing", "portfolio", "monte-carlo", "quant",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "arch>=7.0",
+    "threadpoolctl>=3.1",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.8"]
+
+[project.urls]
+Homepage = "https://github.com/h-a-forster/sharpecheck"
+Documentation = "https://github.com/h-a-forster/sharpecheck/tree/main/docs"
+Issues = "https://github.com/h-a-forster/sharpecheck/issues"
+Changelog = "https://github.com/h-a-forster/sharpecheck/blob/main/CHANGELOG.md"
+
+[project.scripts]
+sharpecheck = "sharpecheck.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "matplotlib>=3.8", "scikit-learn>=1.4"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sharpecheck"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/sharpecheck", "tests", "docs", "configs", "scripts", "README.md", "LICENSE",
+    "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CITATION.cff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]

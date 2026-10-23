@@ -1,0 +1,44 @@
+# Monte Carlo of coverage and size, default ("quick") profile. See docs/DESIGN.md section 6.
+# Budget: at most 35 wall-minutes on 3 workers (about 55 CPU-minutes estimated at scaffold
+# time). M5 runs a timing pilot first and records it in results/mc-quick/calibration.json;
+# if the projection is over budget, lower boot reps first. Floors: 1000 replications for
+# analytic coverage cells, 500 for boot_ts cells. The run records the reps it actually used.
+name = "mc-quick"
+seed = 20261024
+level = 0.95
+chunk = 250                          # replications per checkpointed unit
+
+[coverage]
+dgps = ["normal", "t5", "garch-t7", "ar1-0.2", "regime", "crash"]
+sr = [0.0, 0.1, 0.3]
+nobs = [60, 120, 250, 1000, 2520]
+methods = ["iid_normal", "exact_nct", "mertens", "ar1", "hac", "hac_pw", "boot_ts"]
+reps = 2000
+boot_reps = 1000                     # boot_ts runs on the first boot_reps replications
+n_boot = 499
+block = "cube-root"                  # round(T ** (1/3))
+psr_variants = ["observed", "null"]
+
+[difference]                         # Ledoit and Wolf (2008) Table 1 replication
+dgps = ["normal-iid", "t6-iid", "normal-garch", "t6-garch", "normal-var", "t6-var"]
+nobs = 120
+reps = 5000
+n_boot = 499
+methods = ["jkm", "hac", "hac_pw", "boot_iid", "boot_ts_b4", "boot_ts_b6"]
+alphas = [0.01, 0.05, 0.10]
+
+[dsr]
+n_trials = [10, 100, 1000]
+rho = [0.0, 0.3, 0.7]
+nobs = [250, 1250]
+dists = ["normal", "t5"]
+reps = 2000
+rules = [
+    "dsr_trueN_estV", "dsr_trueN_oracleV", "dsr_N/10", "dsr_impliedN",
+    "psr_best", "holm_psr", "lzl_max",
+]
+alpha = 0.05
+
+[run]
+workers = 3
+out_dir = "runs/mc-quick"
