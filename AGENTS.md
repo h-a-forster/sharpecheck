@@ -51,8 +51,8 @@ optimised portfolios" application on Ken French data.
 |---|---|---|
 | `src/sharpecheck/results.py` | `SharpeInterval`, `TestResult` | done |
 | `src/sharpecheck/_validation.py` | input checks | done |
-| `src/sharpecheck/checkpoint.py` | unit store, progress log, capped pool | M1 |
-| `src/sharpecheck/moments.py` | sample moments | M1 |
+| `src/sharpecheck/checkpoint.py` | unit store, progress log, capped pool | done (M1) |
+| `src/sharpecheck/moments.py` | sample moments | done (M1) |
 | `src/sharpecheck/single.py` | single-SR intervals, PSR, MinTRL, power, annualize | M1, M3 |
 | `src/sharpecheck/hac.py` | kernels, Andrews bandwidth, prewhitening | M2 |
 | `src/sharpecheck/bootstrap.py` | circular block bootstrap, studentized stats, calibration | M3, M7 |
@@ -108,9 +108,14 @@ Done:
 - Scaffold microbenchmark: one studentized block bootstrap (B = 499) costs about 2/7/23/62
   ms at T = 60/250/1000/2520 on one thread.
 
+- M1 (2026-10-24): `checkpoint` (ported from tailcheck, 3-worker cap), `moments`
+  (scalar and batch), analytic `single` methods (iid_normal, mertens, ar1, exact_nct with
+  brentq and a vectorised bisection), PSR in both conventions, MinTRL, critical SR, power,
+  annualize. All DESIGN 7.1 single-SR values reproduced by package tests; slow exact_nct
+  coverage test passes.
+
 Next:
-- M1: checkpoint, moments, analytic single-SR methods, PSR/MinTRL/power.
-- Then M2-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
+- M2-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
   Monte Carlo is launched.
 
 Open questions recorded for later milestones:
