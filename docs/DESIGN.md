@@ -676,4 +676,51 @@ university page (R, according to a 2008 r-sig-finance post); it was not used her
 
 ## 13. Implementation notes and deviations
 
-(Filled in during M1-M8.)
+Recorded during M1-M8 (2026-10-24). Where an item changes a formula or a reported
+quantity, the code docstring says the same.
+
+1. **Checkpoint API.** `UnitStore(root, config_hash, inputs=..., force_new=...)` follows the
+   sibling project's tested module instead of the stub's `(root, manifest)` signature. The
+   manifest records the config hash, the input-data SHA-256s and package version (a
+   mismatch refuses to resume), the source hash (a change only warns) and versions.
+2. **Kernel conventions.** QS equals `arch` at the same bandwidth. For Bartlett and Parzen,
+   `arch` truncates at lag `bw` with weights `k(j / (bw + 1))`, so equality holds with our
+   `S_T = bw + 1` (tested). The QS weight uses its Taylor series for `z < 0.01`.
+3. **Prewhitened residuals** are not re-demeaned before the kernel sum (they have mean
+   zero up to rounding); the residual series has `T - 1` rows and its autocovariances use
+   divisor `T - 1`; the `T/(T - d)` factor uses the original `T`.
+4. **Bootstrap SE via gradient projection.** `grad' Psi* grad = mean_j (grad' f_j)^2`, so
+   block sums are projected on the gradient and no matrices are formed. Identical in exact
+   arithmetic to section 4.4; `b = 1` reproduces the sample-covariance delta method
+   (tested; equals the Mertens variance).
+5. **Original-data SE in every bootstrap** is the prewhitened QS HAC SE, including
+   Boot-IID (`b = 1`), as section 4.4 specifies.
+6. **Coverage width metric.** `coverage.csv` reports the mean width and the mean ratio of
+   width to the `iid_normal` width over replications with finite intervals, not the median
+   (medians do not combine across checkpointed chunks).
+7. **One-sided size** for every method is the rate at which its one-sided 95% lower bound
+   exceeds the true SR (`boot_ts`: percentile-t, `SR_hat - q_0.95(t*) se_hat`). PSR rows
+   test `H0: SR <= SR_true` and reject when PSR > 0.95.
+8. **`exact_nct` in the Monte Carlo** uses the vectorised bisection with 50 iterations on a
+   bracket `t -/+ (12 sqrt(1 + t^2/(2(T-1))) + 2)`; a non-bracketed root falls back to the
+   iid-normal bound and is counted (`nct_fallback` in the unit files).
+9. **DSR rules.** Rules 1-4 use the Gumbel `E[max]` (what practitioners compute); rule 7
+   uses the exact moments. Holm's procedure rejects at least one hypothesis exactly when the
+   smallest p-value is at most `alpha / N`, which is how rule 6 is evaluated. The average
+   pairwise correlation for rule 4 is computed in O(NT) from the sum of standardized
+   columns.
+10. **LW 2008 DGPs.** The VAR cases start from a Gaussian draw of the stationary law (for
+    t6-VAR too; the start's influence is negligible at T = 120 with phi = 0.2). The
+    agreement tolerance is `3 sqrt(p (1 - p) (1/n + 1/5000))` with `p` the pooled rate,
+    which equals the section 6.3.2 formula when `n = 5000`. Only the 5% column of LW
+    Table 1 is transcribed, so only 5% rows carry the comparison.
+11. **Quick profile after the pilot.** The pilot projected 117 CPU-minutes (39 wall
+    minutes on 3 workers), above the 35-minute budget, so `coverage.boot_reps` was lowered
+    from 1000 to 500 (the floor) and `dsr.reps` from 2000 to 1000
+    (`results/mc-quick/calibration.json`).
+12. **Turnover** drifts weights with the excess returns (not total returns); for monthly
+    data the difference is second order. Reported for description only.
+13. **Ken French files.** The vintage regex matches "using the YYYYMM CRSP database", which
+    covers both "created using the ..." (current files) and "created by <program> using
+    the ..." (older layouts). `ind48` stays in `DATASETS` for
+    users but is not used by the study (section 2, item 6).
