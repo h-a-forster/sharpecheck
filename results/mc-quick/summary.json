@@ -1,0 +1,125 @@
+{
+  "config": {
+    "name": "mc-quick",
+    "seed": 20261024,
+    "level": 0.95,
+    "chunk": 250,
+    "coverage": {
+      "dgps": [
+        "normal",
+        "t5",
+        "garch-t7",
+        "ar1-0.2",
+        "regime",
+        "crash"
+      ],
+      "sr": [
+        0.0,
+        0.1,
+        0.3
+      ],
+      "nobs": [
+        60,
+        120,
+        250,
+        1000,
+        2520
+      ],
+      "methods": [
+        "iid_normal",
+        "exact_nct",
+        "mertens",
+        "ar1",
+        "hac",
+        "hac_pw",
+        "boot_ts"
+      ],
+      "reps": 2000,
+      "boot_reps": 500,
+      "n_boot": 499,
+      "block": "cube-root",
+      "psr_variants": [
+        "observed",
+        "null"
+      ]
+    },
+    "difference": {
+      "dgps": [
+        "normal-iid",
+        "t6-iid",
+        "normal-garch",
+        "t6-garch",
+        "normal-var",
+        "t6-var"
+      ],
+      "nobs": 120,
+      "reps": 5000,
+      "n_boot": 499,
+      "methods": [
+        "jkm",
+        "hac",
+        "hac_pw",
+        "boot_iid",
+        "boot_ts_b4",
+        "boot_ts_b6"
+      ],
+      "alphas": [
+        0.01,
+        0.05,
+        0.1
+      ]
+    },
+    "dsr": {
+      "n_trials": [
+        10,
+        100,
+        1000
+      ],
+      "rho": [
+        0.0,
+        0.3,
+        0.7
+      ],
+      "nobs": [
+        250,
+        1250
+      ],
+      "dists": [
+        "normal",
+        "t5"
+      ],
+      "reps": 1000,
+      "rules": [
+        "dsr_trueN_estV",
+        "dsr_trueN_oracleV",
+        "dsr_N/10",
+        "dsr_impliedN",
+        "psr_best",
+        "holm_psr",
+        "lzl_max"
+      ],
+      "alpha": 0.05
+    },
+    "run": {
+      "workers": 3,
+      "out_dir": "runs/mc-quick"
+    }
+  },
+  "config_hash": "4b4c09b295deca28",
+  "versions": {
+    "python": "3.13.1",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pandas": "3.1.0",
+    "arch": "8.0.0",
+    "sharpecheck": "0.1.0.dev0"
+  },
+  "started": "2026-10-23T22:32:29+00:00",
+  "cpu_seconds_in_units": 4852.2,
+  "n_units": 984,
+  "coverage_cells": 630,
+  "flag_under": 257,
+  "flag_over": 0,
+  "heatmap": true,
+  "lw_table1_agree": "32/36"
+}

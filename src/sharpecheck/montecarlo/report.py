@@ -207,6 +207,45 @@ def dsr_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) -> pd.D
     )
 
 
+def variance_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) -> pd.DataFrame:
+    """Empirical ``T Var(SR_hat)`` and bias per coverage cell next to the iid formulas.
+
+    ``V_mertens`` and ``V_ar1`` are evaluated at the population moments, so a gap between
+    them and the empirical value is dependence the formula does not model.
+    """
+    from sharpecheck.montecarlo.dgps import population_moments
+    from sharpecheck.single import sr_variance
+
+    acc: dict[tuple[Any, ...], list[float]] = {}
+    for uid, a in units:
+        if a["experiment"] != "coverage":
+            continue
+        s = store.read(uid)["sr_hat"]
+        v = acc.setdefault((a["dgp"], a["sr"], a["nobs"]), [0.0, 0.0, 0.0])
+        v[0] += s["n"]  # type: ignore[index]
+        v[1] += s["sum"]  # type: ignore[index]
+        v[2] += s["sumsq"]  # type: ignore[index]
+    rows = []
+    for (dgp, sr, t), (n, sm, ss) in acc.items():
+        pm = population_moments(dgp, sr)
+        mean = sm / n
+        rows.append(
+            {
+                "dgp": dgp,
+                "sr": sr,
+                "nobs": t,
+                "reps": int(n),
+                "mean_sr_hat": mean,
+                "bias": mean - sr,
+                "T_var_empirical": (ss / n - mean * mean) * t,
+                "V_iid_normal": 1 + sr * sr / 2,
+                "V_mertens": sr_variance(sr, 1, pm.g3, pm.g4),
+                "V_ar1": sr_variance(sr, 1, pm.g3, pm.g4, pm.rho1),
+            }
+        )
+    return pd.DataFrame(rows).sort_values(["dgp", "sr", "nobs"]).reset_index(drop=True)
+
+
 def heatmap(cov: pd.DataFrame, path: Path) -> bool:
     """Coverage heatmap: rows method, columns dgp x sr, one panel per T. Returns success."""
     try:
@@ -217,16 +256,20 @@ def heatmap(cov: pd.DataFrame, path: Path) -> bool:
         from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
     except ImportError:  # pragma: no cover - optional dependency
         return False
+    from sharpecheck.montecarlo.dgps import DGPS
     from sharpecheck.montecarlo.runner import COVERAGE_METHODS
 
     cmap = LinearSegmentedColormap.from_list("cov", ["#e34948", "#f0efec", "#2a78d6"])
     norm = TwoSlopeNorm(vmin=0.80, vcenter=0.95, vmax=1.0)
     methods = [m for m in COVERAGE_METHODS if m in set(cov["method"])]
-    dgps = list(dict.fromkeys(cov["dgp"]))
+    present = set(cov["dgp"])
+    dgps = [d for d in DGPS if d in present]
     srs = sorted(set(cov["sr"]))
     cols = [(d, s) for d in dgps for s in srs]
     ts = sorted(set(cov["nobs"]))
-    fig, axes = plt.subplots(len(ts), 1, figsize=(13, 2.35 * len(ts) + 1.2), squeeze=False)
+    fig, axes = plt.subplots(
+        len(ts), 1, figsize=(13, 2.0 * len(ts) + 1.0), squeeze=False, layout="constrained"
+    )
     idx = cov.set_index(["dgp", "sr", "nobs", "method"])
     im = None
     for ax, t in zip(axes[:, 0], ts, strict=True):
@@ -255,12 +298,10 @@ def heatmap(cov: pd.DataFrame, path: Path) -> bool:
     fig.suptitle(
         "Two-sided 95% coverage (%) of SR intervals; * = significant (Holm) and below 93%",
         fontsize=10,
-        x=0.01,
-        ha="left",
         color="#2b2b29",
     )
     if im is not None:
-        cb = fig.colorbar(im, ax=axes[:, 0].tolist(), fraction=0.015, pad=0.01)
+        cb = fig.colorbar(im, ax=axes[:, 0].tolist(), fraction=0.012, pad=0.005)
         cb.set_label("coverage", fontsize=8)
         cb.ax.tick_params(labelsize=7)
     fig.savefig(path, dpi=130, bbox_inches="tight", facecolor="#fcfcfb")
@@ -290,6 +331,9 @@ def build_report(config_path: Path, out_dir: Path | None = None) -> Path:
         summary["flag_under"] = int(cov["flag_under"].sum())
         summary["flag_over"] = int(cov["flag_over"].sum())
         summary["heatmap"] = heatmap(cov, out / "coverage_heatmap.png")
+        variance_table(store, units).to_csv(
+            out / "sr_variance.csv", index=False, float_format="%.6g"
+        )
     if "difference" in cfg:
         dif = difference_table(store, units)
         dif.to_csv(out / "difference.csv", index=False, float_format="%.6g")

@@ -138,9 +138,27 @@ Done:
   budget, so `coverage.boot_reps` went 1000 -> 500 (floor) and `dsr.reps` 2000 -> 1000
   (recorded in `results/mc-quick/calibration.json`).
 
+- M6 (2026-10-24): quick Monte Carlo run (`configs/mc_quick.toml`, 984 units, 3 workers,
+  27.7 min wall, no failures) and report (`results/mc-quick/`). 257 of 630 coverage rows
+  flagged under-covering (Holm, < 0.93), none over; LW Table 1 agreement 32/36. GARCH and
+  regime under-coverage checked against the empirical T Var(SR_hat) (`sr_variance.csv`):
+  real, not a bug. Boot-IID VAR gap explained by the studentizing SE convention
+  (`scripts/lw_bootiid_convention.py`).
+- M7 (2026-10-24): `data` (Ken French fetch with SHA-256 manifest, vintage 202608),
+  `portfolio` (rules, rolling backtest, study). Primary pre-registered test: no rule
+  differs from 1/N after Romano-Wolf (best ff25 gmv_lw, raw p 0.014, adjusted 0.073).
+- M8 (2026-10-24): REPORT.md, README, CHANGELOG 0.1.0, version 0.1.0 (not tagged, not
+  pushed).
+
 Next:
-- M6-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
-  Monte Carlo is launched.
+- Full Monte Carlo profile (`configs/mc_full.toml`, about 15-25 CPU-hours): split into
+  runs under 45 min with the retry wrapper; resume skips finished units.
+- HAC bandwidth alternatives (Newey-West 1994, fixed-b) under GARCH/regime, and a
+  larger or calibrated bootstrap block in the Monte Carlo; these target the main
+  under-coverage finding.
+- Portfolio: calibrated block (`calibrate_block = true`) and model confidence set
+  (both "should" items, not run).
+- Push to GitHub and check CI (not done; requires the owner's go-ahead).
 
 Open questions recorded for later milestones:
 - LW 2008 VAR DGPs: "mean 1, variance 1" read as the stationary law (DESIGN 6.3.2).

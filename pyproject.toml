@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sharpecheck"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Sharpe-ratio inference in Python (iid, Mertens/Opdyke, AR(1)-adjusted, HAC, studentized block bootstrap, exact noncentral t, PSR, MinTRL, DSR, Ledoit-Wolf difference tests, Romano-Wolf stepdown), with a Monte Carlo check of interval coverage and test size."
 readme = "README.md"
 license = "MIT"

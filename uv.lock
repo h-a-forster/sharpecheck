@@ -1241,7 +1241,7 @@ wheels = [
 
 [[package]]
 name = "sharpecheck"
-version = "0.1.0.dev0"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "arch" },

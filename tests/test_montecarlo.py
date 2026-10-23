@@ -190,6 +190,8 @@ def test_report_on_tiny_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert set(dsr["rule"]) == set(cfg["dsr"]["rules"])
     summary = json.loads((out / "summary.json").read_text())
     assert summary["n_units"] == len(runner.build_units(cfg))
+    var = pd.read_csv(out / "sr_variance.csv")
+    assert len(var) == 4 and (var["T_var_empirical"] > 0).all()
     one = pd.read_csv(out / "onesided.csv")
     assert {"psr_observed", "psr_null"} <= set(one["method"])
 

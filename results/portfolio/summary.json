@@ -1,0 +1,96 @@
+{
+  "primary_claim": {
+    "period": "full",
+    "alpha": 0.05,
+    "rules_different_from_1N": []
+  },
+  "data": {
+    "ind10": {
+      "file": "10_Industry_Portfolios_CSV.zip",
+      "sha256": "ebd937a4b995d821867aeb956a96f09a666386f38fa82516b7d1767ee4a49ae5",
+      "vintage": "202608",
+      "downloaded": "2026-10-23T22:36:30+00:00"
+    },
+    "ff25": {
+      "file": "25_Portfolios_5x5_CSV.zip",
+      "sha256": "e02edcd282d8993cf3133e71181665f888ecb57c202a99a9cbd6cdf7fc6b8429",
+      "vintage": "202608",
+      "downloaded": "2026-10-23T22:36:31+00:00"
+    },
+    "ff3": {
+      "file": "F-F_Research_Data_Factors_CSV.zip",
+      "sha256": "593f4fbef03181bc0b22ff6292f217689dd1fb79355049ca905d95b262040a66",
+      "vintage": "202608",
+      "downloaded": "2026-10-23T22:36:31+00:00"
+    }
+  },
+  "versions": {
+    "python": "3.13.1",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pandas": "3.1.0",
+    "arch": "8.0.0",
+    "sharpecheck": "0.1.0.dev0"
+  },
+  "config": {
+    "name": "portfolio",
+    "seed": 20261024,
+    "data": {
+      "datasets": [
+        "ind10",
+        "ff25"
+      ],
+      "factors": "ff3",
+      "section": "value-weighted",
+      "start": "1963-07",
+      "cache_dir": "data"
+    },
+    "backtest": {
+      "window": 120,
+      "rules": [
+        "equal",
+        "inverse_vol",
+        "gmv_sample",
+        "gmv_lw",
+        "hrp"
+      ],
+      "benchmark": "equal"
+    },
+    "inference": {
+      "periods": [
+        {
+          "name": "full",
+          "start": "1973-07",
+          "end": "last"
+        },
+        {
+          "name": "dgu-era",
+          "start": "1973-07",
+          "end": "2004-11"
+        },
+        {
+          "name": "post-publication",
+          "start": "2004-12",
+          "end": "last"
+        }
+      ],
+      "primary_period": "full",
+      "n_boot": 4999,
+      "block": "cube-root",
+      "block_sensitivity": [
+        1,
+        2,
+        4,
+        6,
+        8,
+        10
+      ],
+      "calibrate_block": false,
+      "alpha": 0.05
+    },
+    "run": {
+      "workers": 3,
+      "out_dir": "runs/portfolio"
+    }
+  }
+}
