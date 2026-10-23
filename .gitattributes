@@ -2,3 +2,4 @@
 *.png binary
 *.zip binary
 *.parquet binary
+tests/fixtures/*.csv -text
