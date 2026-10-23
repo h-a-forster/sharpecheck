@@ -53,10 +53,10 @@ optimised portfolios" application on Ken French data.
 | `src/sharpecheck/_validation.py` | input checks | done |
 | `src/sharpecheck/checkpoint.py` | unit store, progress log, capped pool | done (M1) |
 | `src/sharpecheck/moments.py` | sample moments | done (M1) |
-| `src/sharpecheck/single.py` | single-SR intervals, PSR, MinTRL, power, annualize | M1, M3 |
+| `src/sharpecheck/single.py` | single-SR intervals, PSR, MinTRL, power, annualize | done (M1, M3) |
 | `src/sharpecheck/hac.py` | kernels, Andrews bandwidth, prewhitening | done (M2) |
-| `src/sharpecheck/bootstrap.py` | circular block bootstrap, studentized stats, calibration | M3, M7 |
-| `src/sharpecheck/compare.py` | JKM, LW HAC, LW bootstrap | M3 |
+| `src/sharpecheck/bootstrap.py` | circular block bootstrap, studentized stats, calibration | done (M3) |
+| `src/sharpecheck/compare.py` | JKM, LW HAC, LW bootstrap | done (M3) |
 | `src/sharpecheck/deflated.py` | expected max, DSR, implied N, pFDR/oFDR | M4 |
 | `src/sharpecheck/multiple.py` | Holm, BH, Romano-Wolf, MCS wrapper | M4, M7 |
 | `src/sharpecheck/montecarlo/` | DGPs, runner, report | M5, M6 |
@@ -117,9 +117,16 @@ Done:
   bandwidth, Andrews-Monahan prewhitening). QS equals `arch` at fixed bandwidth to 1e-10;
   Bartlett/Parzen equal `arch` with `S_T = arch bandwidth + 1` (arch's convention);
   prewhitened and plain QS within 3% of the true VAR(1) long-run covariance at T = 200,000.
+- M3 (2026-10-24): `bootstrap` (circular block indices, studentized SR and joint
+  SR-difference bootstraps via gradient-projected block sums, LW Algorithm 3.1 block
+  calibration), `compare` (JKM-Memmel, LW HAC with/without prewhitening, LW bootstrap with
+  eq. 9 p-value and symmetric interval), `single` hac/hac_pw/boot_ts. b = 1 block SE equals
+  the sample-covariance delta method (= Mertens); HAC SE for Gaussian AR(1) within 3% of
+  sqrt(1.505417/T) at T = 100,000. Timing (one thread, B = 499): bootstrap 2/8/30/64 ms,
+  HAC + HAC-PW pair 0.8/1.2/1.7/3.4 ms at T = 60/250/1000/2520.
 
 Next:
-- M3-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
+- M4-M8 in order (DESIGN 9). M5 must start with the timing pilot before the quick
   Monte Carlo is launched.
 
 Open questions recorded for later milestones:
