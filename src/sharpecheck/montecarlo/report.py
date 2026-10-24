@@ -71,11 +71,13 @@ def coverage_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) ->
     """One row per (dgp, sr, T, method) with coverage, one-sided size, widths and flags."""
     agg: dict[tuple[Any, ...], dict[str, float]] = {}
     psr: dict[tuple[Any, ...], dict[str, float]] = {}
+    fallback: dict[tuple[Any, ...], int] = {}
     for uid, a in units:
         if a["experiment"] != "coverage":
             continue
         rec = store.read(uid)
         cell = (a["dgp"], a["sr"], a["nobs"])
+        fallback[cell] = fallback.get(cell, 0) + int(rec.get("nct_fallback", 0))  # type: ignore[call-overload]
         for m, c in rec["methods"].items():  # type: ignore[union-attr]
             acc = agg.setdefault((*cell, m), {})
             for k, v in c.items():
@@ -93,6 +95,8 @@ def coverage_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) ->
         row["miss_high"] = c["miss_high"] / n
         row.update(_rate(int(c["lower_viol"]), n, "onesided_size"))
         row["nan"] = int(c["nan"])
+        # exact_nct bounds that fell back to the normal approximation (of 3 per replication)
+        row["fallback_bounds"] = fallback.get((dgp, sr, t), 0) if m == "exact_nct" else 0
         ok = n - c["nan"]
         row["mean_width"] = c["width_sum"] / ok if ok else math.nan
         row["mean_width_ratio_vs_iid"] = c["ratio_sum"] / c["ratio_n"] if c["ratio_n"] else math.nan
@@ -330,6 +334,17 @@ def build_report(config_path: Path, out_dir: Path | None = None) -> Path:
         summary["coverage_cells"] = int(len(cov))
         summary["flag_under"] = int(cov["flag_under"].sum())
         summary["flag_over"] = int(cov["flag_over"].sum())
+        # Flags depend on power (boot_ts has fewer replications); report raw counts too.
+        by_m = cov.groupby("method")
+        summary["by_method"] = {
+            str(m): {
+                "reps_per_cell": int(g["reps"].max()),
+                "flag_under": int(g["flag_under"].sum()),
+                "cells_below_0.93": int((g["coverage"] < UNDER_MATERIAL).sum()),
+            }
+            for m, g in by_m
+        }
+        summary["nct_fallback_bounds"] = int(cov["fallback_bounds"].sum())
         summary["heatmap"] = heatmap(cov, out / "coverage_heatmap.png")
         variance_table(store, units).to_csv(
             out / "sr_variance.csv", index=False, float_format="%.6g"

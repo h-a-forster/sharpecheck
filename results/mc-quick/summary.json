@@ -115,11 +115,49 @@
     "sharpecheck": "0.1.0.dev0"
   },
   "started": "2026-10-23T22:32:29+00:00",
-  "cpu_seconds_in_units": 4852.2,
+  "cpu_seconds_in_units": 7469.5,
   "n_units": 984,
   "coverage_cells": 630,
-  "flag_under": 257,
+  "flag_under": 256,
   "flag_over": 0,
+  "by_method": {
+    "ar1": {
+      "reps_per_cell": 2000,
+      "flag_under": 34,
+      "cells_below_0.93": 34
+    },
+    "boot_ts": {
+      "reps_per_cell": 500,
+      "flag_under": 16,
+      "cells_below_0.93": 25
+    },
+    "exact_nct": {
+      "reps_per_cell": 2000,
+      "flag_under": 46,
+      "cells_below_0.93": 46
+    },
+    "hac": {
+      "reps_per_cell": 2000,
+      "flag_under": 35,
+      "cells_below_0.93": 35
+    },
+    "hac_pw": {
+      "reps_per_cell": 2000,
+      "flag_under": 33,
+      "cells_below_0.93": 33
+    },
+    "iid_normal": {
+      "reps_per_cell": 2000,
+      "flag_under": 46,
+      "cells_below_0.93": 46
+    },
+    "mertens": {
+      "reps_per_cell": 2000,
+      "flag_under": 46,
+      "cells_below_0.93": 46
+    }
+  },
+  "nct_fallback_bounds": 0,
   "heatmap": true,
-  "lw_table1_agree": "32/36"
+  "lw_table1_agree": "34/36"
 }

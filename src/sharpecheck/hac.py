@@ -49,9 +49,12 @@ def kernel_weights(lags: ArrayLike, bandwidth: float, kernel: Kernel = "qs") -> 
 def andrews_bandwidth(y: ArrayLike, kernel: Kernel = "qs") -> float:
     """Andrews (1991) automatic bandwidth from univariate AR(1) fits to each column of y.
 
-    Each column is demeaned and fitted by OLS without intercept; ``|rho|`` is capped at
-    0.97. Equal weights across columns. Columns with zero variance are ignored; if all are
-    degenerate the bandwidth is 1 (small, harmless because the covariance is then ~0).
+    Each column is demeaned, divided by its sample standard deviation and fitted by OLS
+    without intercept; ``|rho|`` is capped at 0.97. Equal weights across the standardised
+    columns, i.e. Andrews' weights ``w_a = 1 / var_a^2`` on the raw columns, so the
+    bandwidth does not change when a column is rescaled (DESIGN 4.3). Columns with zero
+    variance are ignored; if all are degenerate the bandwidth is 1 (small, harmless because
+    the covariance is then ~0).
     """
     _check_kernel(kernel)
     a = as_float_2d(np.asarray(y, dtype=np.float64).reshape(len(y), -1), "y", min_rows=3)
@@ -65,7 +68,7 @@ def andrews_bandwidth(y: ArrayLike, kernel: Kernel = "qs") -> float:
             continue
         rho = float(np.clip((x0 @ x1) / ss, -AR_CAP, AR_CAP))
         e = x1 - rho * x0
-        s2 = float(np.mean(e * e))
+        s2 = float(np.mean(e * e)) / float(np.mean(col * col))
         s4 = s2 * s2
         num1 += 4 * rho**2 * s4 / ((1 - rho) ** 6 * (1 + rho) ** 2)
         num2 += 4 * rho**2 * s4 / (1 - rho) ** 8
@@ -125,6 +128,9 @@ def long_run_cov(
     Prewhitening (Andrews and Monahan 1992): OLS VAR(1) ``y_t = A y_{t-1} + e_t``; singular
     values of ``A`` above 0.97 are set to 0.97 and the residuals recomputed; the estimate
     on ``e`` is recoloured by ``(I - A)^{-1} Psi_e (I - A)^{-T}``.
+
+    All steps run on columns divided by their sample standard deviations and the result is
+    scaled back, so rescaling a column of ``y`` rescales the estimate exactly (DESIGN 4.3).
     """
     _check_kernel(kernel)
     arr = np.asarray(y, dtype=np.float64)
@@ -137,7 +143,12 @@ def long_run_cov(
     if bandwidth is not None and not bandwidth > 0:
         raise ValueError(f"bandwidth must be positive, got {bandwidth}")
     a = a - a.mean(axis=0)
-    scale = t / (t - dof_adjust)
+    # Work on standardised columns and scale back at the end, so the estimate is
+    # equivariant under rescaling a column (the singular-value cap is not otherwise).
+    sd = a.std(axis=0)
+    sd = np.where(sd > 0, sd, 1.0)
+    a = a / sd
+    scale = t / (t - dof_adjust) * np.outer(sd, sd)
     if not prewhiten:
         bw = andrews_bandwidth(a, kernel) if bandwidth is None else float(bandwidth)
         return scale * kernel_sum(a, kernel, bw)

@@ -1,10 +1,11 @@
-"""Sensitivity check for the Boot-IID mismatch with Ledoit and Wolf (2008) Table 1.
+"""Boot-IID with the two original-data standard errors (Ledoit and Wolf 2008, Table 1).
 
-In the main run every bootstrap studentizes the original-data statistic with the
-prewhitened QS HAC standard error (DESIGN 4.4), including Boot-IID (block 1). This script
-re-runs Boot-IID with the iid (block-1, sample-covariance) standard error on the original
-data instead, to test whether that convention explains the VAR-case gap (ours about 5.5%,
-LW 8.5% and 7.3%). Same DGPs, T = 120, M = 499, 2000 replications per DGP, seeded.
+LW 2008 section 3.2.1 studentize the original Boot-IID statistic with the iid standard
+error (sample covariance of the moment vectors); the main run now does the same. Up to the
+0.1.0 corrections the main run used the prewhitened QS HAC standard error instead, which
+removed Boot-IID's liberal size under the VAR DGPs. This script runs both variants on the
+same draws to show the effect. Same DGPs, T = 120, M = 499, 2000 replications per DGP,
+seeded.
 
     uv run python scripts/lw_bootiid_convention.py   # about 1-2 CPU-minutes
 
@@ -19,19 +20,12 @@ from pathlib import Path
 
 import numpy as np
 
-from sharpecheck.bootstrap import _projected_block_sums, diff_tstar
+from sharpecheck.bootstrap import diff_tstar, iid_se_diff
 from sharpecheck.compare import lw_hac_se
 from sharpecheck.montecarlo.dgps import PAIR_DGPS, simulate_pair
 from sharpecheck.montecarlo.report import LW_TABLE1_5PCT, wilson_interval
 
 REPS, T, N_BOOT, SEED = 2000, 120, 499, 20261024
-
-
-def iid_se_diff(pair: np.ndarray) -> float:
-    """Block-1 (sample covariance) delta-method SE of SR(col 1) - SR(col 0)."""
-    _, h = _projected_block_sums(pair[None, :, :], 1)
-    hd = h[0, :, 1] - h[0, :, 0]
-    return float(np.sqrt(np.mean(hd * hd) / pair.shape[0]))
 
 
 def main() -> None:
@@ -46,7 +40,7 @@ def main() -> None:
             d, se_hac = lw_hac_se(x[i, :, 0], x[i, :, 1], prewhiten=True)
             ts = np.abs(diff_tstar(pair, 1, N_BOOT, rng, np.array([d]))[:, 0])
             ts = ts[np.isfinite(ts)]
-            for se, which in ((iid_se_diff(pair), "iid"), (se_hac, "hac")):
+            for se, which in ((float(iid_se_diff(pair)[0]), "iid"), (se_hac, "hac")):
                 if not (math.isfinite(se) and se > 0) or ts.size == 0:
                     continue
                 p = (1 + np.sum(ts >= abs(d) / se)) / (ts.size + 1)

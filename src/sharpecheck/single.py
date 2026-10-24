@@ -104,6 +104,29 @@ def _normal_interval(
     return SharpeInterval(method, est, lo, hi, level, se, nobs, det)
 
 
+def nct_cdf(tstat: ArrayLike, df: int, delta: ArrayLike) -> FloatArray:
+    """Noncentral t CDF ``P(T <= t)`` that is finite where SciPy returns NaN.
+
+    SciPy (checked on 1.18.1) returns NaN for ``stats.nct.cdf`` far in the tails, e.g.
+    ``cdf(-1.37, 249, 11.95)``; the NaN band reaches into the brackets used to invert the
+    CDF. Such entries are recomputed by the reflection ``cdf(t, df, d) = sf(-t, df, -d)``,
+    and any entry still not finite is set to its limit (1 where ``d < t``, else 0).
+    """
+    t = np.asarray(tstat, dtype=np.float64)
+    d = np.asarray(delta, dtype=np.float64)
+    t, d = np.broadcast_arrays(t, d)
+    with np.errstate(invalid="ignore", over="ignore", divide="ignore"):
+        c = np.asarray(stats.nct.cdf(t, df, d), dtype=np.float64)
+        bad = ~np.isfinite(c)
+        if bad.any():
+            c = c.copy()
+            c[bad] = stats.nct.sf(-t[bad], df, -d[bad])
+            bad = ~np.isfinite(c)
+            if bad.any():
+                c[bad] = np.where(d[bad] < t[bad], 1.0, 0.0)
+    return np.clip(c, 0.0, 1.0)
+
+
 def nct_delta_roots(
     tstat: ArrayLike, df: int, probs: ArrayLike, *, iterations: int = 60
 ) -> tuple[FloatArray, FloatArray]:
@@ -119,12 +142,12 @@ def nct_delta_roots(
     half = 12.0 * np.sqrt(1.0 + t * t / (2.0 * df)) + 2.0
     lo = t - half
     hi = t + half
-    f_lo = stats.nct.cdf(t, df, lo) - p
-    f_hi = stats.nct.cdf(t, df, hi) - p
+    f_lo = nct_cdf(t, df, lo) - p
+    f_hi = nct_cdf(t, df, hi) - p
     ok = np.isfinite(f_lo) & np.isfinite(f_hi) & (f_lo >= 0) & (f_hi <= 0)
     for _ in range(iterations):
         mid = 0.5 * (lo + hi)
-        right = (stats.nct.cdf(t, df, mid) - p) > 0
+        right = (nct_cdf(t, df, mid) - p) > 0
         lo = np.where(right, mid, lo)
         hi = np.where(right, hi, mid)
     return 0.5 * (lo + hi), ok
@@ -136,8 +159,9 @@ def nct_interval(
     """Exact interval for SR from the ddof-1 t statistic ``sqrt(T) mean / s``.
 
     Inverts the noncentral t CDF in the noncentrality with brentq and divides by
-    ``sqrt(T)``. Returns ``(lower, upper, exact)``; ``exact`` is False when a root could not
-    be bracketed and the normal approximation ``t/sqrt(T) -/+ z sqrt((1 + SR^2/2)/T)`` was
+    ``sqrt(T)``. The CDF is evaluated by :func:`nct_cdf`. Returns ``(lower, upper, exact)``;
+    ``exact`` is False when a root could not be bracketed or found and the normal
+    approximation ``t/sqrt(T) -/+ z sqrt((1 + SR^2/2)/T)`` was
     used instead.
     """
     check_level(level)
@@ -151,13 +175,16 @@ def nct_interval(
 
     def root(q: float) -> float | None:
         def f(d: float) -> float:
-            return float(stats.nct.cdf(tstat, df, d)) - q
+            return float(nct_cdf(tstat, df, d)) - q
 
         a, b = tstat - half, tstat + half
         fa, fb = f(a), f(b)
         if not (math.isfinite(fa) and math.isfinite(fb)) or fa < 0 or fb > 0:
             return None
-        return float(optimize.brentq(f, a, b, xtol=1e-12, rtol=1e-12)) / rt
+        try:
+            return float(optimize.brentq(f, a, b, xtol=1e-12, rtol=1e-12)) / rt
+        except (ValueError, RuntimeError):
+            return None
 
     lo = root(q_lo) if side != "upper" else -math.inf
     hi = root(q_hi) if side != "lower" else math.inf
@@ -243,7 +270,7 @@ def sharpe_ci(
         lo, hi, exact = nct_interval(tstat, t, level, side)
         det: dict[str, Any] = {"tstat": tstat}
         if not exact:
-            det["approximation"] = "normal (noncentral t root not bracketed)"
+            det["approximation"] = "normal (noncentral t root not found)"
         return SharpeInterval(method, m.sr, lo, hi, level, math.nan, t, det)
     if method in ("hac", "hac_pw"):
         _, se, det = hac_se(a, prewhiten=method == "hac_pw")

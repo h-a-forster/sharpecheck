@@ -387,7 +387,7 @@ def _coverage_unit(a: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _difference_unit(a: Mapping[str, Any]) -> dict[str, Any]:
-    from sharpecheck.bootstrap import diff_tstar
+    from sharpecheck.bootstrap import diff_tstar, iid_se_diff
     from sharpecheck.compare import jkm_test, lw_hac_se
     from sharpecheck.montecarlo.dgps import simulate_pair
 
@@ -415,10 +415,12 @@ def _difference_unit(a: Mapping[str, Any]) -> dict[str, Any]:
                 pair = np.column_stack([r2, r1])  # SR(col 1) - SR(col 0) = SR1 - SR2
                 for m in boot:
                     blk = 1 if m == "boot_iid" else int(m.rsplit("_b", 1)[1])
+                    # Boot-IID studentizes with the iid SE (LW 2008 section 3.2.1).
+                    s0 = float(iid_se_diff(pair)[0]) if blk == 1 else se
                     ts = np.abs(diff_tstar(pair, blk, n_boot, boot_rng, np.array([d]))[:, 0])
                     ts = ts[np.isfinite(ts)]
-                    if ts.size:
-                        pv[m][i] = (1 + np.sum(ts >= abs(d) / se)) / (ts.size + 1)
+                    if ts.size and math.isfinite(s0) and s0 > 0:
+                        pv[m][i] = (1 + np.sum(ts >= abs(d) / s0)) / (ts.size + 1)
     out: dict[str, Any] = {"methods": {}}
     for m, p in pv.items():
         fin = np.isfinite(p)
@@ -525,14 +527,9 @@ def run_dir(cfg: Mapping[str, Any], base: Path | None = None) -> Path:
 
 
 def open_store(cfg: Mapping[str, Any], root: Path, *, force_new: bool = False) -> UnitStore:
-    from sharpecheck import __version__
-
-    return UnitStore(
-        root,
-        config_hash(cfg),
-        force_new=force_new,
-        inputs={"package_version": __version__},
-    )
+    # No inputs beyond the config: code changes are tracked by the source hash (a warning),
+    # and package versions are recorded in the manifest without blocking a resume.
+    return UnitStore(root, config_hash(cfg), force_new=force_new)
 
 
 def run(

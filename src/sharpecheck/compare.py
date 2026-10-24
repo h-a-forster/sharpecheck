@@ -5,6 +5,7 @@
                     prewhitening, T/(T-4) adjustment
 - ``lw_boot_test``  Ledoit and Wolf (2008) section 3.2: studentized circular block bootstrap,
                     p-value by eq. (9); ``block=1`` is their Boot-IID variant
+                    (original-data SE from the sample covariance, LW section 3.2.1)
 
 Formulas: DESIGN 4.5. All tests are two-sided tests of H0: SR_1 = SR_2 on paired series.
 SRs use the ddof-0 moment estimators throughout.
@@ -114,6 +115,8 @@ def lw_boot_test(
     ``block=None`` uses :func:`sharpecheck.bootstrap.default_block`. ``d = |Delta|/se``,
     ``d*_m = |Delta*_m - Delta| / se*_m``, ``p = (1 + #{d* >= d}) / (M + 1)`` (LW eq. 9).
     ``details`` carries the symmetric bootstrap interval ``Delta -/+ q_level(d*) se``.
+    ``se`` is the prewhitened LW HAC SE, or the iid sample-covariance SE when ``block=1``
+    (Boot-IID, LW 2008 section 3.2.1).
     """
     from sharpecheck.bootstrap import default_block, studentized_diff_boot
 

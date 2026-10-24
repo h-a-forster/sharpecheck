@@ -78,8 +78,8 @@ def _backtest_unit(a: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _store(cfg: dict[str, Any]) -> tuple[UnitStore, dict[str, Any]]:
-    from sharpecheck import __version__, data
+def _store(cfg: dict[str, Any], *, read_only: bool = False) -> tuple[UnitStore, dict[str, Any]]:
+    from sharpecheck import data
 
     manifest = data.read_manifest(Path(cfg["data"]["cache_dir"]))
     names = [*cfg["data"]["datasets"], cfg["data"]["factors"]]
@@ -87,8 +87,9 @@ def _store(cfg: dict[str, Any]) -> tuple[UnitStore, dict[str, Any]]:
     if missing:
         raise RuntimeError(f"data not fetched: {missing}; run `sharpecheck data fetch` first")
     inputs = {n: manifest[n]["sha256"] for n in names}
-    inputs["package_version"] = __version__
-    store = UnitStore(Path(cfg["run"]["out_dir"]), config_hash(cfg), inputs=inputs)
+    store = UnitStore(
+        Path(cfg["run"]["out_dir"]), config_hash(cfg), inputs=inputs, read_only=read_only
+    )
     return store, {n: manifest[n] for n in names}
 
 
@@ -124,10 +125,15 @@ def joint_diff_test(
 ) -> dict[str, np.ndarray]:
     """LW studentized bootstrap for several (benchmark, rule) column pairs of ``x``.
 
-    All pairs share the resampled time indices. Returns ``delta, se, t_obs, p_boot,
+    All pairs share the resampled time indices. The original-data SE is the prewhitened LW
+    HAC SE, or the iid SE when ``block = 1``. Returns ``delta, se, t_obs, p_boot,
     p_rw`` (Romano-Wolf adjusted) arrays over pairs.
     """
-    from sharpecheck.bootstrap import _projected_block_sums, circular_block_indices
+    from sharpecheck.bootstrap import (
+        _projected_block_sums,
+        circular_block_indices,
+        iid_se_diff,
+    )
     from sharpecheck.compare import lw_hac_se
     from sharpecheck.multiple import romano_wolf
 
@@ -137,6 +143,8 @@ def joint_diff_test(
     delta, se = np.empty(k), np.empty(k)
     for i, (b0, j) in enumerate(pairs):
         delta[i], se[i] = lw_hac_se(x[:, j], x[:, b0], prewhiten=True)
+        if block == 1:  # Boot-IID: iid SE on the original data (LW 2008 section 3.2.1)
+            se[i] = iid_se_diff(x[:, [b0, j]])[0]
     idx = circular_block_indices(t, block, n_boot, rng)
     sr_star, h = _projected_block_sums(x[idx], block)
     tstar = np.empty((n_boot, k))
@@ -165,7 +173,11 @@ def build_report(config_path: Path, out_dir: Path | None = None) -> Path:
     from sharpecheck.single import sharpe_ci
 
     cfg = load_config(config_path)
-    store, manifest = _store(cfg)
+    store, manifest = _store(cfg, read_only=True)
+    stored = store.manifest.get("inputs") or {}
+    for n, v in manifest.items():
+        if n in stored and stored[n] != v["sha256"]:
+            raise RuntimeError(f"{n} changed since the run (sha256 differs); rerun the backtest")
     rules = list(cfg["backtest"]["rules"])
     bench = cfg["backtest"]["benchmark"]
     datasets = list(cfg["data"]["datasets"])

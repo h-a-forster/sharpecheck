@@ -14,6 +14,7 @@ from sharpecheck.single import (
     annualize,
     critical_sr,
     min_track_record_length,
+    nct_cdf,
     nct_delta_roots,
     nct_interval,
     power,
@@ -165,6 +166,42 @@ def test_nct_large_noncentrality_t2520() -> None:
     se = math.sqrt((1 + 0.045) / 2520)
     assert lo == pytest.approx(0.3 - 1.96 * se, abs=2e-3)
     assert hi == pytest.approx(0.3 + 1.96 * se, abs=2e-3)
+
+
+def test_nct_cdf_finite_where_scipy_nan() -> None:
+    # SciPy returns NaN here; the true value is ~0 (t far below the noncentrality).
+    assert nct_cdf(-1.37, 249, 11.95) == pytest.approx(0.0, abs=1e-12)
+    assert nct_cdf(1.37, 249, -11.95) == pytest.approx(1.0, abs=1e-12)
+    d = np.linspace(-40, 40, 2001)
+    for t in (-8.0, -1.37, 0.0, 1.37, 8.0):
+        c = nct_cdf(t, 249, d)
+        assert np.all(np.isfinite(c)) and np.all(np.diff(c) <= 1e-12)  # decreasing in d
+        ok = np.isfinite(stats.nct.cdf(t, 249, d))
+        assert np.allclose(c[ok], stats.nct.cdf(t, 249, d[ok]), atol=1e-10)
+
+
+@pytest.mark.parametrize("nobs", [24, 36, 60, 120, 250, 1000, 2520])
+def test_nct_negative_t_mirrors_positive(nobs: int) -> None:
+    # Realistic negative SRs used to raise in brentq (NaN inside the bracket).
+    tgrid = np.linspace(0.05, 9.95, 34)
+    for tval in tgrid:
+        lo_p, hi_p, ex_p = nct_interval(float(tval), nobs)
+        lo_n, hi_n, ex_n = nct_interval(float(-tval), nobs)
+        assert ex_p and ex_n
+        assert lo_n == pytest.approx(-hi_p, abs=1e-9)
+        assert hi_n == pytest.approx(-lo_p, abs=1e-9)
+        for side in ("lower", "upper"):
+            nct_interval(float(-tval), nobs, 0.95, side)  # must not raise
+    d, ok = nct_delta_roots(-tgrid[:, None], nobs - 1, np.array([[0.975, 0.025, 0.95]]))
+    assert ok.all()
+
+
+def test_sharpe_ci_exact_nct_negative_sr() -> None:
+    rng = np.random.default_rng(8)
+    x = -0.087 + rng.standard_normal(250)
+    ci = sharpe_ci(x, "exact_nct")
+    assert ci.lower < ci.estimate < ci.upper
+    assert "approximation" not in ci.details
 
 
 def test_nct_one_sided() -> None:

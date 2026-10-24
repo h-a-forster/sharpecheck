@@ -194,7 +194,8 @@ def simulate_pair(name: str, nobs: int, reps: int, rng: np.random.Generator) -> 
     variance). VAR: the IID cases plus AR(1) coefficient 0.2 in each series, scaled so the
     *stationary* law has means 1, variances 1 and correlation 0.5 (DESIGN 6.3.2 reading).
     GARCH: diagonal-vech bivariate GARCH(1,1) with LW's C, A, B, mean 16.5/52, innovations
-    bivariate normal or standardized t6 with identity scale, 1000 burn-in periods.
+    bivariate normal or bivariate t6 (shared mixing variable, unit variances, zero
+    covariance), 1000 burn-in periods.
     """
     if name not in PAIR_DGPS:
         raise ValueError(f"unknown pair DGP {name!r}; choose from {PAIR_DGPS}")
@@ -215,7 +216,9 @@ def simulate_pair(name: str, nobs: int, reps: int, rng: np.random.Generator) -> 
     if dist == "normal":
         z = rng.standard_normal((total, reps, 2))
     else:
-        z = _std_t(rng, 6.0, (total, reps, 2))
+        # LW 2008 section 4.2: i.i.d. bivariate t6 (one shared chi-square per draw),
+        # standardized to unit variances and zero covariance.
+        z = _bivariate(rng, (total, reps), 0.0, "t6")
     h11 = np.full(reps, c[0, 0] / (1 - a[0, 0] - b[0, 0]))
     h22 = np.full(reps, c[1, 1] / (1 - a[1, 1] - b[1, 1]))
     h12 = np.full(reps, c[0, 1] / (1 - a[0, 1] - b[0, 1]))

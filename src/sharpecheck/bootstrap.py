@@ -79,7 +79,9 @@ def studentized_sr_boot(
     """Return ``(sr_hat, se_hat, t_star)`` for one series.
 
     ``t_star[m] = (sr*_m - sr_hat) / se*_m`` (signed; take ``abs`` for the symmetric
-    interval). ``se_hat`` is the prewhitened-QS HAC standard error of the original data.
+    interval). ``se_hat`` is the prewhitened-QS HAC standard error of the original data,
+    except for ``block = 1`` (iid bootstrap), where it is the iid delta-method SE with the
+    sample covariance of ``(r, r^2)``, following Ledoit and Wolf (2008) section 3.2.1.
     Resamples with zero variance give ``nan`` entries.
     """
     from sharpecheck.single import hac_se
@@ -89,6 +91,8 @@ def studentized_sr_boot(
     b = _check_block(t, block)
     rng = np.random.default_rng(seed)
     sr_hat, se_hat, _ = hac_se(a, prewhiten=True)
+    if b == 1 and math.isfinite(sr_hat):
+        se_hat = block_se_sr(a, 1)
     return sr_hat, se_hat, sr_tstar(a, b, n_boot, rng, sr_hat)
 
 
@@ -135,7 +139,9 @@ def studentized_diff_boot(
     ``(n_boot, k-1)``, where ``delta_j = SR_j - SR_0``. All columns share the resampled
     time indices, so ``t_star`` feeds the Romano-Wolf stepdown directly. ``se_hat`` is the
     Ledoit-Wolf HAC standard error (QS, Andrews bandwidth, ``T/(T-4)``; prewhitened by
-    default) of each pair on the original data.
+    default) of each pair on the original data, except for ``block = 1`` (LW's Boot-IID),
+    where LW 2008 section 3.2.1 use the sample covariance of ``(r_1, r_2, r_1^2, r_2^2)``,
+    i.e. :func:`iid_se_diff`.
     """
     from sharpecheck.compare import lw_hac_se
 
@@ -149,7 +155,20 @@ def studentized_diff_boot(
     se = np.empty(k - 1)
     for j in range(1, k):
         delta[j - 1], se[j - 1] = lw_hac_se(a[:, j], a[:, 0], prewhiten=prewhiten)
+    if b == 1:
+        se = np.where(np.isfinite(delta), iid_se_diff(a), np.nan)
     return delta, se, diff_tstar(a, b, n_boot, rng, delta)
+
+
+def iid_se_diff(a: FloatArray) -> FloatArray:
+    """iid delta-method SEs of ``SR_j - SR_0`` for the columns of a (T x k) matrix.
+
+    Uses the sample covariance of the moment vectors (block-1 sums), as Ledoit and Wolf
+    (2008) section 3.2.1 prescribe for Boot-IID. Returns shape ``(k-1,)``.
+    """
+    _, h = _projected_block_sums(a[None, :, :], 1)  # (1, T, k)
+    hd = h[0, :, 1:] - h[0, :, :1]
+    return np.sqrt(np.mean(hd * hd, axis=0) / a.shape[0])
 
 
 def diff_tstar(

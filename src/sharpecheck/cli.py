@@ -88,6 +88,25 @@ def _read_column(path: Path, column: str | None) -> tuple[str, Any]:
     return col, pd.to_numeric(df[col], errors="raise").dropna().to_numpy(dtype=float)
 
 
+def _read_pair(path: Path, col1: str, col2: str) -> tuple[Any, Any]:
+    """Both columns, keeping only rows where both are present (dates stay aligned)."""
+    import pandas as pd
+
+    df = pd.read_csv(path)
+    for col in (col1, col2):
+        if col not in df.columns:
+            raise SystemExit(f"column {col!r} not found; available: {list(df.columns)}")
+    both = df[[col1, col2]].apply(pd.to_numeric, errors="raise")
+    dropped = int(both.isna().any(axis=1).sum())
+    both = both.dropna()
+    if dropped:
+        print(
+            f"note: dropped {dropped} row(s) with a missing value in either column",
+            file=sys.stderr,
+        )
+    return both[col1].to_numpy(dtype=float), both[col2].to_numpy(dtype=float)
+
+
 def _cmd_sr(args: argparse.Namespace) -> int:
     from sharpecheck.moments import sample_moments
     from sharpecheck.single import METHODS, min_track_record_length, psr_test, sharpe_ci
@@ -134,10 +153,7 @@ def _cmd_sr(args: argparse.Namespace) -> int:
 def _cmd_compare(args: argparse.Namespace) -> int:
     from sharpecheck.compare import jkm_test, lw_boot_test, lw_hac_test
 
-    _, a = _read_column(args.csv, args.col1)
-    _, b = _read_column(args.csv, args.col2)
-    if a.size != b.size:
-        raise SystemExit("columns have different numbers of non-missing values")
+    a, b = _read_pair(args.csv, args.col1, args.col2)
     res = [
         jkm_test(a, b),
         lw_hac_test(a, b, prewhiten=False),

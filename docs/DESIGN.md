@@ -177,12 +177,20 @@ Estimator: `Psi_hat = T/(T - d) sum_{j=-(T-1)}^{T-1} k(j / S_T) Gamma_hat(j)`,
 `Gamma_hat(j) = (1/T) sum_{t=j+1}^{T} y_t y_{t-j}'`, `Gamma_hat(-j) = Gamma_hat(j)'`,
 `y` demeaned. Compute all autocovariances by FFT (O(T log T)) for the QS kernel.
 
-Bandwidth (Andrews 1991, AR(1) plug-in, equal weights): for each column `a`, fit
-`y_{a,t} = rho_a y_{a,t-1} + e_t` by OLS, `s_a^2 = var(e)`;
+Bandwidth (Andrews 1991, AR(1) plug-in, equal weights on standardised columns): for each
+column `a`, divide by its sample sd, fit `y_{a,t} = rho_a y_{a,t-1} + e_t` by OLS,
+`s_a^2 = var(e)` (so `s_a^2 = var(e) / var(y_a)` on the raw column, Andrews' weights
+`w_a = 1 / var(y_a)^2`);
 `alpha(1) = sum 4 rho^2 s^4 / ((1 - rho)^6 (1 + rho)^2) / sum s^4 / (1 - rho)^4`,
 `alpha(2) = sum 4 rho^2 s^4 / (1 - rho)^8 / sum s^4 / (1 - rho)^4`;
 `S_T = 1.1447 (alpha(1) T)^(1/3)` (Bartlett), `2.6614 (alpha(2) T)^(1/5)` (Parzen),
-`1.3221 (alpha(2) T)^(1/5)` (QS). Clip `|rho_a| <= 0.97`.
+`1.3221 (alpha(2) T)^(1/5)` (QS). Clip `|rho_a| <= 0.97`. Standardising matters: with
+raw columns, the SR moment vector `(r - mu, r^2 - gamma)` weights the `r^2` column by
+`c^8` against `c^4` when returns are multiplied by `c`, so the bandwidth (and every HAC and
+bootstrap interval) would depend on whether returns are in decimals or percent. The whole
+estimator, prewhitening included, runs on standardised columns and is scaled back, so
+`long_run_cov(y D) = D long_run_cov(y) D` for diagonal `D` (tested through
+`sharpe_ci(c x)`; added in 0.1.0 before release, see section 13 item 14).
 
 Prewhitening (Andrews and Monahan 1992): OLS VAR(1) `y_t = A y_{t-1} + e_t`; if a singular
 value of `A` exceeds 0.97, set it to 0.97 (SVD) and recompute residuals; estimate
@@ -202,7 +210,8 @@ moments and `y*_t` the resample moment deviations; with `l = floor(T/b)`,
 `f_j = b^{-1/2} sum_{t=1}^{b} y*_{(j-1)b + t}`, `Psi* = (1/l) sum_j f_j f_j'`,
 `se* = sqrt(grad f(v*)' Psi* grad f(v*) / T)`. For `b = 1` this is the sample covariance
 of the resample (LW footnote 9; a unit test). `se_hat` on the original data is the
-prewhitened QS HAC standard error.
+prewhitened QS HAC standard error for `b >= 2`, and the iid delta-method SE (sample
+covariance of the moment vectors) for `b = 1`, following LW 2008 section 3.2.1.
 
 Block-size calibration (LW Algorithm 3.1, "should", M7): fit VAR(1) to the pair; generate
 `K` pseudo series from the VAR with stationary-bootstrap residuals (mean block 5); for each
@@ -223,7 +232,8 @@ Notation of LW (2008): `v = (mu1, mu2, gamma1, gamma2)`,
   `se = sqrt(grad' Psi grad / T)`; `p = 2 Phi(-|Delta_hat| / se)`.
 - `lw_boot_test`: `d = |Delta_hat| / se_hat`, `d*_m = |Delta*_m - Delta_hat| / se*_m`,
   `p = (1 + #{d*_m >= d}) / (M + 1)` (LW eq. 9); interval `Delta_hat -/+ q_{1-alpha}(d*) se_hat`.
-  `block = 1` reproduces LW's Boot-IID.
+  `block = 1` is LW's Boot-IID: as in LW section 3.2.1, `se_hat` is then the iid SE
+  from the sample covariance of `(r1, r2, r1^2, r2^2)`, not the HAC SE.
 - Many strategies (`bootstrap.studentized_diff_boot`): column 0 is the benchmark; all
   pairs `(0, j)` use the same resampled time indices; `t_j = Delta_hat_j / se_hat_j` and
   `t*_{mj} = (Delta*_{mj} - Delta_hat_j) / se*_{mj}` feed `multiple.romano_wolf`.
@@ -401,7 +411,8 @@ Normal-IID (bivariate normal, means 1, variances 1, correlation 0.5), t6-IID (bi
 scaled to unit variance, correlation 0.5, means 1), Normal-GARCH and t6-GARCH (diagonal-vech
 bivariate GARCH(1,1) with C = [[0.15, 0.13], [0.13, 0.15]], A = [[0.075, 0.05], [0.05,
 0.075]], B = [[0.90, 0.89], [0.89, 0.90]], mean 16.5/52 each, innovations bivariate normal
-or standardized t6 with identity scale), Normal-VAR and t6-VAR (the IID cases plus AR(1)
+or bivariate t6 with one shared chi-square, standardized to unit variances and zero
+covariance), Normal-VAR and t6-VAR (the IID cases plus AR(1)
 coefficient 0.2 in each series). Methods: JKM, HAC (QS, no prewhitening), HACPW, Boot-IID
 (`b = 1`), Boot-TS with fixed `b = 4` and `b = 6` (LW calibrate `b`; documented deviation).
 Agreement criterion per entry: `|ours - LW| <= 3 sqrt(2 p (1 - p) / 5000)` with `p` the
@@ -681,8 +692,10 @@ quantity, the code docstring says the same.
 
 1. **Checkpoint API.** `UnitStore(root, config_hash, inputs=..., force_new=...)` follows the
    sibling project's tested module instead of the stub's `(root, manifest)` signature. The
-   manifest records the config hash, the input-data SHA-256s and package version (a
-   mismatch refuses to resume), the source hash (a change only warns) and versions.
+   manifest records the config hash, the input-data SHA-256s (a mismatch refuses to
+   resume), the source hash (a change only warns) and versions. The package version is
+   recorded under `versions` but is not an input, so a version bump neither blocks a
+   resume nor forces `--force-new`; reports open the store read-only.
 2. **Kernel conventions.** QS equals `arch` at the same bandwidth. For Bartlett and Parzen,
    `arch` truncates at lag `bw` with weights `k(j / (bw + 1))`, so equality holds with our
    `S_T = bw + 1` (tested). The QS weight uses its Taylor series for `z < 0.01`.
@@ -693,8 +706,11 @@ quantity, the code docstring says the same.
    block sums are projected on the gradient and no matrices are formed. Identical in exact
    arithmetic to section 4.4; `b = 1` reproduces the sample-covariance delta method
    (tested; equals the Mertens variance).
-5. **Original-data SE in every bootstrap** is the prewhitened QS HAC SE, including
-   Boot-IID (`b = 1`), as section 4.4 specifies.
+5. **Original-data SE in the bootstrap** is the prewhitened QS HAC SE for `b >= 2`. For
+   Boot-IID (`b = 1`) it is the iid sample-covariance SE, as LW 2008 section 3.2.1
+   prescribes. Before the 0.1.0 corrections the HAC SE was used for `b = 1` as well, which
+   was a deviation from LW, not a convention; the first quick run's Boot-IID VAR rates
+   (5.5% and 5.1%) came from that deviation.
 6. **Coverage width metric.** `coverage.csv` reports the mean width and the mean ratio of
    width to the `iid_normal` width over replications with finite intervals, not the median
    (medians do not combine across checkpointed chunks).
@@ -703,7 +719,12 @@ quantity, the code docstring says the same.
    test `H0: SR <= SR_true` and reject when PSR > 0.95.
 8. **`exact_nct` in the Monte Carlo** uses the vectorised bisection with 50 iterations on a
    bracket `t -/+ (12 sqrt(1 + t^2/(2(T-1))) + 2)`; a non-bracketed root falls back to the
-   iid-normal bound and is counted (`nct_fallback` in the unit files).
+   iid-normal bound and is counted (`nct_fallback` in the unit files, `fallback_bounds` in
+   `coverage.csv`). SciPy 1.18.1's `stats.nct.cdf` returns NaN far in the tails (for
+   example `cdf(-1.37, 249, 11.95)`), inside the bracket; `single.nct_cdf` recomputes such
+   entries by the reflection `cdf(t, df, d) = sf(-t, df, -d)` and maps anything still
+   non-finite to its 0/1 limit. Before this, the library's brentq path raised on many
+   negative t statistics and the Monte Carlo fell back on 2.9% of bounds.
 9. **DSR rules.** Rules 1-4 use the Gumbel `E[max]` (what practitioners compute); rule 7
    uses the exact moments. Holm's procedure rejects at least one hypothesis exactly when the
    smallest p-value is at most `alpha / N`, which is how rule 6 is evaluated. The average
@@ -724,3 +745,10 @@ quantity, the code docstring says the same.
     covers both "created using the ..." (current files) and "created by <program> using
     the ..." (older layouts). `ind48` stays in `DATASETS` for
     users but is not used by the study (section 2, item 6).
+14. **Corrections before release (0.1.0).** An independent review found and we fixed: the
+    noncentral t NaN (item 8), Boot-IID's original-data SE (item 5), the scale dependence of
+    the Andrews bandwidth and of the prewhitening cap (section 4.3), the t6-GARCH
+    innovations (section 6.3.2: a shared mixing variable, as in LW), missing-value
+    alignment in `sharpecheck compare`, and the package version blocking resumes (item 1).
+    The coverage and difference experiments of the quick profile and the portfolio report
+    were re-run after these fixes; the DSR units do not use any changed code and were kept.

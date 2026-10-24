@@ -271,3 +271,10 @@ out_dir = "{(tmp_path / "run").as_posix()}"
     assert set(sens["block"]) == {1, 3}
     summary = json.loads((out / "summary.json").read_text())
     assert summary["data"]["ind10"]["vintage"] == "202608"
+    # A package version bump must not block resuming or reporting a finished run.
+    import sharpecheck
+
+    monkeypatch.setattr(sharpecheck, "__version__", "99.0.0")
+    study.run(cfg_path, workers=1)
+    study.build_report(cfg_path, tmp_path / "res2")
+    assert (tmp_path / "res2" / "tests.csv").read_text() == (out / "tests.csv").read_text()

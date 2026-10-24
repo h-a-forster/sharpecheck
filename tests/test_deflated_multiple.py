@@ -133,6 +133,20 @@ def test_romano_wolf_single_hypothesis_equals_bootstrap_p() -> None:
     assert p[0] == pytest.approx((1 + np.sum(np.abs(ts[:, 0]) >= 1.7)) / 1000)
 
 
+def test_romano_wolf_stepdown_hand_example() -> None:
+    # |t| = (3, 2). Step 1 uses max(|t*_1|, |t*_2|): one of four rows >= 3, p = 2/5.
+    # Step 2 drops hypothesis 1 and uses |t*_2| alone: one row >= 2, p = 2/5.
+    # A single-step max-T adjustment would give hypothesis 2 the value 3/5 instead.
+    ts = np.array([[3.5, 0.0], [0.0, 2.5], [0.1, 0.1], [0.2, 0.2]])
+    t = np.array([3.0, -2.0])
+    assert romano_wolf(t, ts) == pytest.approx([0.4, 0.4])
+    single = (1 + np.sum(np.abs(ts).max(axis=1)[:, None] >= np.abs(t), axis=0)) / 5
+    assert single == pytest.approx([0.4, 0.6])
+    # Monotonicity enforcement: a raw step-2 p-value below step 1 is raised to it.
+    ts2 = np.array([[3.5, 0.0], [3.6, 0.0], [0.1, 0.1], [0.2, 2.5]])
+    assert romano_wolf(t, ts2) == pytest.approx([0.6, 0.6])
+
+
 def test_romano_wolf_properties() -> None:
     rng = np.random.default_rng(3)
     k, b = 6, 1999

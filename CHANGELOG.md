@@ -9,6 +9,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 First release.
 
+### Fixed before release
+
+- `exact_nct` no longer raises on negative t statistics: SciPy's `nct.cdf` returns NaN far
+  in the tails, so `single.nct_cdf` uses the reflection identity there; brentq failures
+  fall back to the normal approximation as documented.
+- The Andrews bandwidth and the prewhitening cap now work on standardised columns, so HAC
+  and bootstrap intervals no longer depend on the units of the returns.
+- Boot-IID (`block = 1`) studentizes the original statistic with the iid standard error,
+  as in Ledoit and Wolf (2008) section 3.2.1.
+- The t6-GARCH pair DGP uses bivariate t6 innovations with a shared mixing variable.
+- `sharpecheck compare` drops rows with a missing value in either column instead of
+  shifting one series against the other.
+- The package version is no longer a run-store input, so a version bump does not block
+  resuming or reporting; `portfolio report` opens the store read-only.
+- `coverage.csv` reports `exact_nct` fallback counts; `summary.json` reports cells below
+  0.93 next to the Holm flags per method.
+
 ### Added
 
 - `single`: Sharpe-ratio intervals by iid-normal, exact noncentral t, Mertens/Opdyke,

@@ -111,17 +111,19 @@ These are short answers from the quick Monte Carlo profile ([REPORT.md](REPORT.m
   `ar1`, `hac_pw` or `boot_ts`; these give 93-97%.
 - **Skewed, crash-prone returns.** `iid_normal` and `exact_nct` stay near 83% at SR =
   0.3 at any T. `mertens`, `ar1` and the HAC methods recover only at T >= 1000.
-- **GARCH volatility clustering or regime switching.** No method reaches 95%. Coverage
-  is about 81-86% even at T = 2520 when SR = 0.3, because the true variance of the
-  estimator is about twice the formula value. Treat every interval as too narrow under
-  these processes.
+- **GARCH volatility clustering or regime switching.** When SR > 0, no method reaches
+  95%. At SR = 0.3 and T = 2520 coverage is 81-83% under GARCH and 75-85% under regime
+  switching, because the true variance of the estimator is well above the formula value
+  (about twice under GARCH). At SR = 0 the GARCH cells are near nominal; regime
+  switching stays at 89-93%. Treat every interval as too narrow under these processes
+  when the SR is away from zero.
 - **Overall**, the studentized block bootstrap (`boot_ts`) is the closest to nominal,
   but it is conservative at T = 60.
 
 Applied to 1/N against optimised portfolios on Ken French data (1973-2026), no rule's
 Sharpe ratio differs from 1/N at 5% after Romano-Wolf adjustment. The closest is
 Ledoit-Wolf minimum variance on the 25 size/book-to-market portfolios, with adjusted
-p = 0.073.
+p = 0.072.
 
 ## Validation
 
@@ -130,8 +132,8 @@ p = 0.073.
   recomputes them independently.
 - The QS HAC estimator equals `arch`'s at a fixed bandwidth to 1e-10. The Ledoit-Wolf
   covariance matches scikit-learn's `ledoit_wolf`.
-- A Ledoit-Wolf (2008) Table 1 replication agrees in 32 of 36 entries. Both large gaps
-  are explained in the report.
+- A Ledoit-Wolf (2008) Table 1 replication agrees in 34 of 36 entries. The two misses
+  are our fixed-block (b = 6) bootstrap, which is conservative; LW calibrate the block.
 - The Monte Carlo is checkpointed per unit with hashed seeds, and results are identical
   with 1 and 3 workers. Every rate has a Wilson interval, and under-coverage flags use a
   Holm correction.

@@ -13,6 +13,7 @@ from sharpecheck.bootstrap import (
     block_se_sr,
     circular_block_indices,
     default_block,
+    iid_se_diff,
     studentized_diff_boot,
     studentized_sr_boot,
 )
@@ -181,3 +182,79 @@ def test_calibrate_block_small() -> None:
     best, g = bootstrap.calibrate_block(x, (1, 4), n_pseudo=8, n_boot=49, seed=1)
     assert best in (1, 4)
     assert set(g) == {1, 4} and all(0 <= v <= 1 for v in g.values())
+
+
+def test_hac_se_gradient_matters_large_sr_fat_tails() -> None:
+    # iid skewed fat-tailed data at SR = 0.5: the r^2 gradient term carries a large share
+    # of the variance, so a wrong gamma-gradient cannot pass. HAC SE ~ Mertens SE from the
+    # same sample (iid, so the long-run covariance is the ordinary covariance).
+    rng = np.random.default_rng(21)
+    t = 20_000
+    z = rng.standard_t(9, t) + 0.5 * (rng.chisquare(4, t) - 4) / math.sqrt(8)
+    x = 0.5 + (z - z.mean()) / z.std()
+    ref = sharpe_ci(x, "mertens")
+    for pw in (False, True):
+        _, se, _ = hac_se(x, prewhiten=pw)
+        assert se == pytest.approx(ref.se, rel=0.03)
+    # Wrong gradient (gamma term dropped) must be far off.
+    mu, gam = x.mean(), np.mean(x * x)
+    var = gam - mu * mu
+    se_bad = math.sqrt(gam**2 / var**3 * var / t)
+    assert abs(se_bad / ref.se - 1) > 0.1
+
+
+def test_block1_se_equals_sample_covariance_delta_method() -> None:
+    rng = np.random.default_rng(22)
+    x = 0.3 + rng.standard_t(5, 500)
+    mu, gam = x.mean(), np.mean(x * x)
+    var = gam - mu * mu
+    grad = np.array([gam / var**1.5, -mu / (2 * var**1.5)])
+    m = np.column_stack([x - mu, x * x - gam])
+    cov = m.T @ m / x.size
+    assert block_se_sr(x, 1) == pytest.approx(math.sqrt(grad @ cov @ grad / x.size), rel=1e-10)
+
+
+@pytest.mark.parametrize("method", ["hac", "hac_pw", "boot_ts"])
+def test_intervals_scale_invariant(method: str) -> None:
+    # The SR is scale-free; so must be the HAC bandwidth and every interval built on it.
+    rng = np.random.default_rng(23)
+    t = 1000
+    state = np.cumsum(rng.random(t) < 0.02) % 2
+    x = np.where(state == 0, 0.08 + rng.standard_normal(t), -0.05 + 2.5 * rng.standard_normal(t))
+    base = sharpe_ci(x, method, n_boot=199, seed=3)  # type: ignore[arg-type]
+    for c in (0.01, 100.0, 1e-4):
+        ci = sharpe_ci(c * x, method, n_boot=199, seed=3)  # type: ignore[arg-type]
+        assert ci.lower == pytest.approx(base.lower, rel=1e-8, abs=1e-12)
+        assert ci.upper == pytest.approx(base.upper, rel=1e-8, abs=1e-12)
+
+
+def test_lw_tests_scale_invariant() -> None:
+    rng = np.random.default_rng(24)
+    t = 600
+    common = rng.standard_normal(t) * np.repeat(rng.uniform(0.5, 2.0, t // 50), 50)
+    a = 0.1 + common + 0.5 * rng.standard_normal(t)
+    b = 0.05 + 0.8 * common + 0.7 * rng.standard_normal(t)
+    for pw in (False, True):
+        p0 = lw_hac_test(a, b, prewhiten=pw).pvalue
+        assert lw_hac_test(0.01 * a, 0.01 * b, prewhiten=pw).pvalue == pytest.approx(p0, rel=1e-8)
+    p0 = lw_boot_test(a, b, n_boot=199, seed=2).pvalue
+    assert lw_boot_test(100 * a, 100 * b, n_boot=199, seed=2).pvalue == pytest.approx(p0)
+
+
+def test_boot_iid_uses_iid_standard_error() -> None:
+    # LW 2008 section 3.2.1: Boot-IID studentizes the original statistic with the sample
+    # covariance of (r1, r2, r1^2, r2^2), not the HAC estimate.
+    rng = np.random.default_rng(25)
+    t = 120
+    a = 1.0 + rng.standard_normal(t)
+    b = 1.0 + 0.5 * (a - 1.0) + math.sqrt(0.75) * rng.standard_normal(t)
+    m1, m2, g1, g2 = a.mean(), b.mean(), np.mean(a * a), np.mean(b * b)
+    v1, v2 = g1 - m1 * m1, g2 - m2 * m2
+    grad = np.array([g1 / v1**1.5, -g2 / v2**1.5, -m1 / (2 * v1**1.5), m2 / (2 * v2**1.5)])
+    y = np.column_stack([a - m1, b - m2, a * a - g1, b * b - g2])
+    se_iid = math.sqrt(grad @ (y.T @ y / t) @ grad / t)
+    assert iid_se_diff(np.column_stack([b, a]))[0] == pytest.approx(se_iid, rel=1e-10)
+    res = lw_boot_test(a, b, block=1, n_boot=199, seed=1)
+    assert res.details["se"] == pytest.approx(se_iid, rel=1e-10)
+    res4 = lw_boot_test(a, b, block=4, n_boot=199, seed=1)
+    assert res4.details["se"] == pytest.approx(lw_hac_se(a, b)[1], rel=1e-12)
