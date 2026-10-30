@@ -457,8 +457,9 @@ exceeds 35 wall-minutes, lower the bootstrap replications first, never below 500
 
 Full profile (`configs/mc_full.toml`): 10,000 replications for every method, B = 999, T
 adds 500, SR adds 0.5, `difference` adds `b in {1, 2, 4, 6, 8, 10}`, `dsr` uses 5000
-replications and adds N = 10,000. Projected 15-25 CPU-hours (a projection, not a
-measurement); resumable from `runs/mc-full/units/`.
+replications and adds N = 10,000. Projected 15-25 CPU-hours at design time; the
+timing pilot of 2026-10-30 measured about 69 CPU-hours, 23 wall-hours on 3 workers
+(`results/mc-full/calibration.json`). Resumable from `runs/mc-full/units/`.
 
 ### 6.5 Report and headline
 

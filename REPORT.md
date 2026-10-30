@@ -100,7 +100,7 @@ By process:
   autocorrelation of r_t^2.
 - **regime.** Even at SR = 0 every method covers only 89-93% at all T. The lag-1
   autocorrelation is 0.025, but it decays only as 0.88^k. The empirical T Var(SR_hat)
-  is 1.43, while the AR(1) formula gives 1.05. At SR = 0.3 coverage is 75-86% at
+  is 1.43, while the AR(1) formula gives 1.05. At SR = 0.3 coverage is 75-85% at
   T = 2520. HAC is best there (0.85) and still far from nominal.
 
 **One-sided size** (`onesided.csv`). One-sided size is the rejection rate of
@@ -264,12 +264,13 @@ were "should" items, `calibrate_block = false` in `configs/portfolio.toml`).
 
 - **Quick profile only.** Bootstrap coverage cells use 500 replications (SE about 1
   point) and DSR cells 1000. The full profile (`configs/mc_full.toml`: 10,000
-  replications, B = 999, more T and SR levels) is projected at 15-25 CPU-hours and was
-  not run:
+  replications, B = 999, more T and SR levels) was not run. Its timing pilot measured
+  about 69 CPU-hours, 23 wall-hours on 3 workers (`results/mc-full/calibration.json`).
+  `--max-minutes` ends a session after 40 minutes; rerun it until every unit is done:
 
   ```sh
   uv run python scripts/run_with_retry.py --log runs/mc-full/retry.log -- \
-      uv run sharpecheck mc run --config configs/mc_full.toml --workers 3
+      uv run sharpecheck mc run --config configs/mc_full.toml --workers 3 --max-minutes 40
   uv run sharpecheck mc report --config configs/mc_full.toml
   ```
 
@@ -288,4 +289,5 @@ were "should" items, `calibrate_block = false` in `configs/portfolio.toml`).
 - **Portfolio study.** Results are tied to the data vintage, which the library revises.
   There are no transaction costs. Turnover drifts weights with excess rather than total
   returns. There is no numerical comparison with DGU's tables (different sample).
-- **Not verified here.** CI has not run on GitHub; the repository has not been pushed.
+- **Not verified here.** CI has not yet run on GitHub (the workflow runs on pushes to
+  `main`, pull requests and manual dispatch).

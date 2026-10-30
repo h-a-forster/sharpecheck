@@ -5,9 +5,9 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-24
+## [0.1.0] - 2026-10-30
 
-First release.
+First release. Release notes: `docs/release-notes-0.1.0.md`.
 
 ### Fixed before release
 
@@ -54,3 +54,7 @@ First release.
   (`results/portfolio/`), summarised in `REPORT.md`.
 - Project scaffold, `docs/DESIGN.md` and `scripts/reference_values.py` (independent
   recomputation of published numeric examples).
+- Timing pilot of the full Monte Carlo profile (`results/mc-full/calibration.json`) and a
+  note on the SciPy `nct.cdf` far-tail NaN (`docs/upstream/scipy-nct-cdf.md`).
+- CI runs on pushes to `main` as well as pull requests, with actions pinned to commit
+  SHAs.

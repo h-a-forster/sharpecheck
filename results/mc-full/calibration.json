@@ -1,0 +1,13 @@
+{
+  "config": "configs/mc_full.toml",
+  "pilot_wall_seconds": 401.1,
+  "workers": 3,
+  "projected_cpu_minutes": 4135.6,
+  "projected_cpu_minutes_by_experiment": {
+    "coverage": 2863.0,
+    "difference": 86.4,
+    "dsr": 1186.2
+  },
+  "projected_wall_minutes": 1378.5,
+  "note": "per-unit seconds measured in worker processes on a shared machine"
+}

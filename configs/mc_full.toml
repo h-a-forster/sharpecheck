@@ -1,7 +1,8 @@
 # Monte Carlo of coverage and size, full profile. See docs/DESIGN.md section 6.4.
-# Projected 15-25 CPU-hours (a projection from the scaffold microbenchmark, not a
-# measurement). Resumable: rerun the same command after an interruption.
-#   uv run sharpecheck mc run --config configs/mc_full.toml --workers 3
+# Timing pilot (results/mc-full/calibration.json): about 69 CPU-hours, 23 wall-hours on
+# 3 workers. Resumable: rerun the same command after an interruption; --max-minutes
+# splits it into sessions.
+#   uv run sharpecheck mc run --config configs/mc_full.toml --workers 3 --max-minutes 40
 name = "mc-full"
 seed = 20261024
 level = 0.95

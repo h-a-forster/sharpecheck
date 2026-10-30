@@ -77,7 +77,7 @@ uv run ruff format --check .
 uv run python scripts/reference_values.py
 ```
 
-## How to run the studies (after M5-M7)
+## How to run the studies
 
 ```sh
 uv run sharpecheck mc run --config configs/mc_quick.toml --workers 3     # target <= 35 min wall
@@ -87,13 +87,14 @@ uv run sharpecheck portfolio run --config configs/portfolio.toml
 uv run sharpecheck portfolio report --config configs/portfolio.toml      # results/portfolio/
 ```
 
-Full size: `configs/mc_full.toml` (projected 15-25 CPU-hours, a projection, not a
-measurement; resumes from `runs/mc-full/units/`). Before any long run, validate on a small
-sample, wrap it in the retry loop and watch the progress log.
+Full size: `configs/mc_full.toml` (timing pilot: about 69 CPU-hours, 23 wall-hours on 3
+workers; resumes from `runs/mc-full/units/`; `--max-minutes 40` keeps each session
+short). Before any long run, validate on a small sample, wrap it in the retry loop and
+watch the progress log.
 
 ## Status and next steps
 
-Updated: 2026-10-24.
+Updated: 2026-10-30.
 
 Done:
 - Scaffold: package layout with typed stubs, CI, hygiene files, configs.
@@ -148,8 +149,7 @@ Done:
 - M7 (2026-10-24): `data` (Ken French fetch with SHA-256 manifest, vintage 202608),
   `portfolio` (rules, rolling backtest, study). Primary pre-registered test: no rule
   differs from 1/N after Romano-Wolf (best ff25 gmv_lw, raw p 0.014, adjusted 0.073).
-- M8 (2026-10-24): REPORT.md, README, CHANGELOG 0.1.0, version 0.1.0 (not tagged, not
-  pushed).
+- M8 (2026-10-24): REPORT.md, README, CHANGELOG 0.1.0, version 0.1.0 (not tagged).
 - Pre-release corrections (2026-10-24, DESIGN 13 item 14): `single.nct_cdf` (SciPy
   1.18.1 `nct.cdf` returns NaN in the tails; exact_nct raised on negative t, MC fell back
   on 2.9% of bounds, now 0); Andrews bandwidth and prewhitening on standardised columns
@@ -163,19 +163,27 @@ Done:
   Regression tests for each fix (negative-t grid, scale invariance, Boot-IID SE,
   stepdown hand example, hac_se gradient at SR 0.5, CLI alignment, version bump).
 
+- Release polish (2026-10-30): repository public on GitHub; CI pinned to action commit
+  SHAs and also run on pushes to `main`; full-profile timing pilot measured about 69
+  CPU-hours, 23 wall-hours on 3 workers (`results/mc-full/calibration.json`; the DSR
+  experiment is 29% of it); SciPy `nct.cdf` far-tail NaN still reproduces on 1.18.1 and is
+  known upstream (`docs/upstream/scipy-nct-cdf.md`); release notes
+  `docs/release-notes-0.1.0.md`.
+
 Next:
-- Full Monte Carlo profile (`configs/mc_full.toml`, about 15-25 CPU-hours): split into
-  runs under 45 min with the retry wrapper; resume skips finished units.
+- Tag v0.1.0 and confirm CI passes on GitHub (it has not run there yet).
+- Full Monte Carlo profile (`configs/mc_full.toml`, about 23 wall-hours): run in sessions
+  with `--max-minutes 40` under the retry wrapper; resume skips finished units. Then
+  `mc report` and update REPORT.md.
 - HAC bandwidth alternatives (Newey-West 1994, fixed-b) under GARCH/regime, and a
   larger or calibrated bootstrap block in the Monte Carlo; these target the main
   under-coverage finding.
 - Portfolio: calibrated block (`calibrate_block = true`) and model confidence set
   (both "should" items, not run).
-- Push to GitHub and check CI (not done; requires the owner's go-ahead).
+- Upstream: SciPy #25470 tracks the `nct.cdf` NaN; Boost.Math fixed it in `develop`
+  (PR #1529). Remove nothing from `single.nct_cdf` until a SciPy release ships the fix.
 - Optional: a way to override a changed run-store input without `--force-new` deleting
   finished units (not needed now that the version is no longer an input).
-- Possible upstream report: SciPy `stats.nct.cdf` NaN in the far tails (e.g.
-  `cdf(-1.37, 249, 11.95)` on 1.18.1); needs a minimal repro against SciPy main first.
 
 Open questions recorded for later milestones:
 - LW 2008 VAR DGPs: "mean 1, variance 1" read as the stationary law (DESIGN 6.3.2).
