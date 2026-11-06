@@ -17,9 +17,9 @@ went from 32 to 34 of 36, because Boot-IID now follows LW.
 
 **Summary.**
 
-- Under iid returns (normal, t5) every method except the bootstrap keeps 95% coverage
-  within Monte Carlo error from T = 60 upward. The studentized block bootstrap
-  over-covers at small T: 98.0% at T = 60 under normal returns.
+- Under iid returns (normal, t5) the analytic and HAC methods cover 92.4-96.0% from T = 60
+  upward. The low end is t5 at T = 60, where six cells are flagged (section 2). The
+  studentized block bootstrap over-covers at small T: 98.0% at T = 60 under normal returns.
 - With serial dependence the iid formulas fail as theory predicts: about 89% coverage
   under AR(1) with phi = 0.2. The AR(1) correction, HAC with prewhitening and the
   bootstrap repair this.
@@ -52,7 +52,7 @@ went from 32 to 34 of 36, because Boot-IID now follows LW.
 | Difference tests | LW (2008) DGPs, T = 120, 5000 replications, M = 499 |
 | DSR experiment | N {10, 100, 1000} x rho {0, 0.3, 0.7} x T {250, 1250} x {normal, t5}, 1000 replications per cell |
 | Sizes after pilot | the timing pilot projected 39 wall minutes (> 35 budget), so `boot_reps` went 1000 -> 500 and `dsr.reps` 2000 -> 1000 (`results/mc-quick/calibration.json`) |
-| Run | 984 checkpointed units, 3 worker processes. First run: 27.7 min wall, no failures. After the corrections, the 840 coverage and difference units were re-run (34.6 min wall, no failures, no retries); the 144 DSR units use no changed code and were kept. 124 CPU-minutes inside the current units |
+| Run | 984 checkpointed units, 3 worker processes. First run: 27.7 min wall, no failures. After the corrections, the 840 coverage and difference units were re-run (34.6 min wall, no failures, no retries); the 144 DSR units use no changed code and were kept (`retry.log`). 124 CPU-minutes inside the current units |
 | Versions | Python 3.13.1, numpy 2.5.4, scipy 1.18.1, pandas 3.1.0, arch 8.0.0 (`results/mc-quick/summary.json`, from the first run's manifest; the re-run used the same environment with the package at 0.1.0) |
 
 Every rate has a 95% Wilson interval in the CSV files. A coverage cell is flagged as

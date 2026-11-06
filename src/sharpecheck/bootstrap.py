@@ -65,9 +65,9 @@ def _projected_block_sums(r: FloatArray, block: int) -> tuple[FloatArray, FloatA
         sr = mu / sd
         g_mu = gam / (var * sd)
         g_gam = -mu / (2 * var * sd)
-    nb = t // block
-    use = r[:, : nb * block]
-    dev = g_mu[:, None] * (use - mu[:, None]) + g_gam[:, None] * (use * use - gam[:, None])
+        nb = t // block
+        use = r[:, : nb * block]
+        dev = g_mu[:, None] * (use - mu[:, None]) + g_gam[:, None] * (use * use - gam[:, None])
     shape = (r.shape[0], nb, block) + r.shape[2:]
     h = dev.reshape(shape).sum(axis=2) / math.sqrt(block)
     return sr, h

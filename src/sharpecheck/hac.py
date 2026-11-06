@@ -53,8 +53,8 @@ def andrews_bandwidth(y: ArrayLike, kernel: Kernel = "qs") -> float:
     without intercept; ``|rho|`` is capped at 0.97. Equal weights across the standardised
     columns, i.e. Andrews' weights ``w_a = 1 / var_a^2`` on the raw columns, so the
     bandwidth does not change when a column is rescaled (DESIGN 4.3). Columns with zero
-    variance are ignored; if all are degenerate the bandwidth is 1 (small, harmless because
-    the covariance is then ~0).
+    variance are ignored; if all are degenerate, or no column has any lag-1 autocorrelation,
+    the bandwidth is 1 (small, harmless because the covariance beyond lag 0 is then ~0).
     """
     _check_kernel(kernel)
     a = as_float_2d(np.asarray(y, dtype=np.float64).reshape(len(y), -1), "y", min_rows=3)
@@ -73,7 +73,7 @@ def andrews_bandwidth(y: ArrayLike, kernel: Kernel = "qs") -> float:
         num1 += 4 * rho**2 * s4 / ((1 - rho) ** 6 * (1 + rho) ** 2)
         num2 += 4 * rho**2 * s4 / (1 - rho) ** 8
         den += s4 / (1 - rho) ** 4
-    if not den > 0:
+    if not (den > 0 and num2 > 0):
         return 1.0
     if kernel == "bartlett":
         return float(1.1447 * (num1 / den * t) ** (1 / 3))

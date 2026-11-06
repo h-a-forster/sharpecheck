@@ -18,7 +18,7 @@ First release (alpha; the API may change). Install from GitHub:
 
 ## Results in this release (quick profile, `REPORT.md`)
 
-- Under iid returns every analytic method covers about 95% from T = 60; the block
+- Under iid returns the analytic and HAC methods cover 92.4-96.0% from T = 60; the block
   bootstrap over-covers at small T (98.0% at T = 60, normal returns, SR = 0).
 - Under AR(1) with phi = 0.2 the iid formulas cover 88-90%; `ar1`, `hac_pw` and
   `boot_ts` cover 92.6-97.0%.
@@ -28,6 +28,28 @@ First release (alpha; the API may change). Install from GitHub:
 - Portfolio study: no rule's Sharpe ratio differs from 1/N after Romano-Wolf adjustment
   (closest: Ledoit-Wolf minimum variance on 25 size/book-to-market portfolios, adjusted
   p = 0.072).
+
+## Fixed since the changelog entry
+
+None of these changes a stored Monte Carlo or portfolio result: `mc report` and
+`portfolio report` reproduce `results/` byte for byte.
+
+- Constant series: `jkm_test`, `lw_hac_test`, `lw_boot_test`, `dsr_test` and `hac_se` only
+  tested for an exactly zero variance. Rounding leaves a constant series a tiny variance,
+  so `sharpecheck compare` on a cash-like column reported a huge SR difference with
+  p near 0. They now return `nan` with a reason, as `sharpe_ci` already did.
+- `ofdr` raised `ZeroDivisionError` for strong track records; it now works from log tail
+  probabilities.
+- `--json` printed bare `NaN` (the `exact_nct` standard error on every `sr` call), which
+  strict JSON parsers reject; it now prints `null`.
+- `andrews_bandwidth` returned 0, and `long_run_cov` raised, when no column had any
+  lag-1 autocorrelation; the bandwidth is now 1.
+- `mc run --experiments` with an unknown name did nothing and exited 0; it now raises.
+- The portfolio config's `inference.block` and `inference.calibrate_block` were silently
+  ignored. Values the study does not apply now raise.
+- `sharpecheck sr --level 0.975` labelled the table "97%".
+- The README console example was stale after the pre-release corrections. It now runs on
+  the committed `tests/fixtures/example_returns.csv`, and a test keeps it current.
 
 ## Known limitations
 

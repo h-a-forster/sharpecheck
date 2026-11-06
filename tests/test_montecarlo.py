@@ -143,6 +143,14 @@ def test_validate_config_rejects_bad_values(tmp_path: Path) -> None:
         runner.validate_config(bad)
 
 
+@pytest.mark.parametrize("experiments", [("covrage",), ()])
+def test_run_rejects_unknown_experiments(tmp_path: Path, experiments: tuple[str, ...]) -> None:
+    cfg = _tiny_config(tmp_path / "r")
+    with pytest.raises(ValueError):
+        runner.run_config(cfg, tmp_path / "r", experiments=experiments)
+    assert not (tmp_path / "r").exists()
+
+
 def test_unit_seed_stable() -> None:
     a = np.random.default_rng(runner.unit_seed(1, "x")).random()
     b = np.random.default_rng(runner.unit_seed(1, "x")).random()

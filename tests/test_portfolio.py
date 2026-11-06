@@ -199,6 +199,21 @@ def _kf_zip(
     path.write_bytes(buf.getvalue())
 
 
+@pytest.mark.parametrize(
+    "line", ["block = 12", "calibrate_block = true"], ids=["fixed-block", "calibration"]
+)
+def test_study_rejects_inference_options_it_does_not_apply(tmp_path: Path, line: str) -> None:
+    from sharpecheck.portfolio import study
+
+    p = tmp_path / "pf.toml"
+    p.write_text(
+        'name = "x"\nseed = 1\n[data]\n[run]\n[backtest]\nrules = ["equal"]\n'
+        f'benchmark = "equal"\n[inference]\n{line}\n'
+    )
+    with pytest.raises(ValueError, match="inference"):
+        study.load_config(p)
+
+
 def test_study_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import hashlib
 

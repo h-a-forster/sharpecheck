@@ -6,6 +6,7 @@ import math
 
 import numpy as np
 import pytest
+from scipy import stats
 
 from sharpecheck.deflated import (
     deflated_sharpe_ratio,
@@ -90,6 +91,10 @@ def test_lzl_fdr_values() -> None:
     assert round(pfdr(0.05, 0.05, beta), 3) == 0.581
     with pytest.raises(ValueError):
         pfdr(0.05, 0.05, 1.0)
+    # Both tail probabilities underflow in 1 - PSR for a strong track record.
+    p0, p1 = stats.norm.sf(0.6 * 1000**0.5), stats.norm.sf(0.5 * (1000 / 1.005) ** 0.5)
+    assert ofdr(0.6, 0.0, 0.1, 1000, 0.1) == pytest.approx(p0 * 0.9 / (p0 * 0.9 + p1 * 0.1))
+    assert ofdr(50.0, 0.0, 0.1, 1000, 0.1) == 0.0
 
 
 def test_dsr_test_defaults() -> None:
@@ -109,6 +114,9 @@ def test_dsr_test_defaults() -> None:
         dsr_test(x[:, :1])
     zero = np.zeros((10, 3))
     assert math.isnan(dsr_test(zero).pvalue)
+    flat = x.copy()
+    flat[:, 0] = 0.1
+    assert dsr_test(flat).details == {"reason": "zero variance"}
 
 
 def test_holm_and_bh_hand_examples() -> None:

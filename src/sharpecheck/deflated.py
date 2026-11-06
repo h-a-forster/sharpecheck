@@ -20,9 +20,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy import integrate, stats
 
-from sharpecheck._validation import as_float_2d, check_level
+from sharpecheck._validation import as_float_2d, check_level, zero_variance
 from sharpecheck.results import TestResult
-from sharpecheck.single import psr
+from sharpecheck.single import psr, sr_variance
 
 EmaxMethod = Literal["gumbel", "exact"]
 
@@ -134,7 +134,7 @@ def dsr_test(
     mu = x.mean(axis=0)
     d = x - mu
     m2 = np.mean(d * d, axis=0)
-    if np.any(m2 <= 0):
+    if np.any(zero_variance(m2, mu)):
         return TestResult("dsr", math.nan, math.nan, t, "greater", {"reason": "zero variance"})
     srs = mu / np.sqrt(m2)
     k = int(np.argmax(srs))
@@ -185,9 +185,16 @@ def ofdr(
     """Posterior probability of H0 given the observed ``sr`` (LZL 2025).
 
     ``p_k = 1 - PSR(sr; sr_k)`` with the null-variance convention;
-    ``oFDR = p0 (1 - p_H1) / (p0 (1 - p_H1) + p1 p_H1)``.
+    ``oFDR = p0 (1 - p_H1) / (p0 (1 - p_H1) + p1 p_H1)``. Computed from log tail
+    probabilities, because both ``p_k`` underflow for a strong track record. Returns
+    ``nan`` when a variance term is not positive.
     """
     check_level(p_h1, "p_h1")
-    p0 = 1.0 - psr(sr, sr0, nobs, g3, g4, rho=rho, variance_at="null")
-    p1 = 1.0 - psr(sr, sr1, nobs, g3, g4, rho=rho, variance_at="null")
-    return p0 * (1 - p_h1) / (p0 * (1 - p_h1) + p1 * p_h1)
+
+    def log_p(sr_k: float) -> float:
+        v = sr_variance(sr_k, nobs, g3, g4, rho)
+        return float(stats.norm.logsf((sr - sr_k) / math.sqrt(v))) if v > 0 else math.nan
+
+    with np.errstate(over="ignore"):
+        odds = np.exp(log_p(sr1) - log_p(sr0)) * p_h1 / (1 - p_h1)  # p1 p_H1 / (p0 (1 - p_H1))
+    return float(1.0 / (1.0 + odds))

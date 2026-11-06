@@ -161,6 +161,20 @@ def test_hac_zero_variance() -> None:
     assert math.isnan(ci.lower)
 
 
+@pytest.mark.parametrize("c", [0.1, 1 / 3, -7.77, 1e-3])
+@pytest.mark.parametrize("t", [6, 100, 2520])
+def test_constant_series_is_undefined_not_significant(c: float, t: int) -> None:
+    # Rounding leaves a constant series a tiny non-zero variance; it must not look like a
+    # huge Sharpe ratio.
+    flat = np.full(t, c)
+    other = np.random.default_rng(t).standard_normal(t)
+    assert math.isnan(hac_se(flat)[0])
+    for pair in ((flat, other), (other, flat)):
+        assert math.isnan(jkm_test(*pair).pvalue)
+        assert math.isnan(lw_hac_test(*pair).pvalue)
+        assert math.isnan(lw_boot_test(*pair, n_boot=19, seed=1).pvalue)
+
+
 def test_hac_se_gaussian_ar1_large_t() -> None:
     rng = np.random.default_rng(10)
     t, phi, sr = 100_000, 0.2, 0.1

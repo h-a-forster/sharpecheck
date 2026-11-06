@@ -1,8 +1,8 @@
 # sharpecheck design
 
-Status: v0.1 plan, written at scaffold time (2026-10-23). The module stubs in
-`src/sharpecheck/` follow this document. When code and this document disagree, fix one of
-them in the same commit.
+Status: the v0.1 design, written at scaffold time (2026-10-23). Section 13 records where
+the implementation differs. When code and this document disagree, fix one of them in the
+same commit.
 
 ## 1. Goal and claims
 
@@ -521,7 +521,7 @@ helpers are themselves pinned by `tests/test_reference_values.py`.
 | JKM-Memmel variance | SR = (0.2, 0.1), rho = 0.5, T = 120 | 0.00850000 | derived |
 | Lo eta(12) | rho = 0.1 / 0.2 / 0.5 | 3.160111 / 2.878849 / 2.121288 | derived |
 | GARCH-t kurtosis | alpha = 0.05, beta = 0.93, nu = 7 | 6.689189 | derived |
-| LW 2008 Table 1 | six DGPs, five methods, three levels | see `reference_values.py` | LW 2008 |
+| LW 2008 Table 1 | six DGPs, five methods, 5% level | see `reference_values.py` | LW 2008 |
 
 Note on the PSR example: the 2012 and 2025 conventions give 0.913 and 0.987 for the same
 track record (T = 24). The difference is entirely the variance convention; both are
@@ -753,3 +753,8 @@ quantity, the code docstring says the same.
     alignment in `sharpecheck compare`, and the package version blocking resumes (item 1).
     The coverage and difference experiments of the quick profile and the portfolio report
     were re-run after these fixes; the DSR units do not use any changed code and were kept.
+15. **Zero variance.** `_validation.zero_variance` is the one test: the variance of demeaned
+    values against `(1e-14 mean)^2`. `gamma - mu^2` cannot be used for it, because its
+    rounding error is of order `eps gamma`, far above that threshold. `hac_se` and
+    `lw_hac_se` therefore compute the variance from demeaned values. The Monte Carlo and
+    the bootstrap resamples keep `gamma - mu^2`; a replayed unit is unchanged.

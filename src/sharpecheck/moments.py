@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import ArrayLike
 
-from sharpecheck._validation import FloatArray, as_float_1d
+from sharpecheck._validation import FloatArray, as_float_1d, zero_variance
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ def sample_moments(x: ArrayLike) -> Moments:
     mu = float(a.mean())
     d = a - mu
     m2 = float(np.mean(d * d))
-    if not m2 > (1e-14 * abs(mu)) ** 2:  # zero variance up to rounding of the mean
+    if zero_variance(m2, mu):
         return Moments(n, mu, 0.0, math.nan, math.nan, math.nan, math.nan)
     m3 = float(np.mean(d**3))
     m4 = float(np.mean(d**4))
@@ -64,7 +64,7 @@ def batch_moments(x: FloatArray) -> dict[str, FloatArray]:
     d2 = d * d
     m2 = d2.mean(axis=1)
     with np.errstate(divide="ignore", invalid="ignore"):
-        bad = ~(m2 > (1e-14 * np.abs(mu)) ** 2)
+        bad = zero_variance(m2, mu)
         m2s = np.where(bad, np.nan, m2)
         sd = np.sqrt(m2s)
         m3 = (d2 * d).mean(axis=1)

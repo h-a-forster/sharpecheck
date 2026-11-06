@@ -89,6 +89,12 @@ def test_andrews_bandwidth_hand_formula() -> None:
     assert andrews_bandwidth(y[:, None], "qs") == pytest.approx(1.3221 * (a2 * t) ** 0.2)
 
 
+def test_andrews_bandwidth_without_autocorrelation() -> None:
+    y = np.tile([1.0, 0.0, -1.0, 0.0], 10)  # lag-1 autocovariance exactly 0
+    assert andrews_bandwidth(y) == 1.0
+    assert long_run_cov(y)[0, 0] > 0
+
+
 def test_andrews_bandwidth_caps_rho() -> None:
     y = np.cumsum(np.ones(100)) ** 2  # deterministic trend: rho near 1
     bw = andrews_bandwidth(y[:, None])

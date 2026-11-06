@@ -22,8 +22,6 @@ import pandas as pd
 
 from sharpecheck.checkpoint import UnitStore, config_hash, run_units
 
-FACTORS = {"ff3": "ff3"}
-
 
 def load_config(path: Path) -> dict[str, Any]:
     with Path(path).open("rb") as fh:
@@ -33,6 +31,10 @@ def load_config(path: Path) -> dict[str, Any]:
             raise ValueError(f"portfolio config is missing '{key}'")
     if cfg["backtest"]["benchmark"] not in cfg["backtest"]["rules"]:
         raise ValueError("backtest.benchmark must be one of backtest.rules")
+    if cfg["inference"].get("block", "cube-root") != "cube-root":
+        raise ValueError("inference.block must be 'cube-root'")
+    if cfg["inference"].get("calibrate_block", False):
+        raise ValueError("inference.calibrate_block is not implemented in the study")
     return cfg
 
 

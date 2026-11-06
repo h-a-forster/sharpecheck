@@ -43,8 +43,8 @@ uv add git+https://github.com/h-a-forster/sharpecheck
 uv sync
 ```
 
-It requires Python 3.11 or later, numpy, scipy, pandas and arch. matplotlib is used only for the
-Monte Carlo heatmap.
+It requires Python 3.11 or later, numpy, scipy, pandas, arch and threadpoolctl. matplotlib is used
+only for the Monte Carlo heatmap.
 
 ## Quick start
 
@@ -66,10 +66,11 @@ res = lw_boot_test(r, benchmark_returns, seed=1)  # H0: equal Sharpe ratios
 print(res.statistic, res.pvalue)
 ```
 
-From the command line, on a CSV with one column per return series:
+From the command line, on a CSV with one column per return series (here the synthetic
+example in `tests/fixtures/`):
 
 ```console
-$ sharpecheck sr returns.csv --column fund
+$ sharpecheck sr tests/fixtures/example_returns.csv --column fund
 fund: T = 240, per-period SR = 0.0573 (mean 0.002103, sd 0.03671)
 skewness 0.047, kurtosis 3.487 (non-excess), lag-1 autocorr -0.093
 
@@ -79,21 +80,21 @@ skewness 0.047, kurtosis 3.487 (non-excess), lag-1 autocorr -0.093
   exact_nct     -0.0695    0.1837       nan
   mertens       -0.0692    0.1838    0.0645
   ar1           -0.0579    0.1725    0.0588
-  hac           -0.0591    0.1737    0.0594
-  hac_pw        -0.0587    0.1732    0.0592
-  boot_ts       -0.0541    0.1687    0.0592
+  hac           -0.0594    0.1740    0.0595
+  hac_pw        -0.0579    0.1725    0.0588
+  boot_ts       -0.0534    0.1680    0.0588
 
 PSR(SR0 = 0): 0.8122 (BLdP 2012, observed variance), 0.8126 (LZL 2025, null variance)
 MinTRL at 95%: 825.0 (observed), 824.6 (null) periods
 
-$ sharpecheck compare returns.csv fund bench
+$ sharpecheck compare tests/fixtures/example_returns.csv fund bench
 SR(fund) - SR(bench) = -0.0838 per period, T = 240
   test        statistic   p-value
   jkm            -1.257    0.2088
-  lw_hac         -1.403    0.1607
-  lw_hac_pw      -1.461    0.1441
-  lw_boot        -1.461    0.1544
-LW bootstrap 95% interval: [-0.2012, 0.0337] (block 6, 4999 resamples)
+  lw_hac         -1.406    0.1597
+  lw_hac_pw      -1.443    0.1491
+  lw_boot        -1.443    0.1598
+LW bootstrap 95% interval: [-0.2027, 0.0351] (block 6, 4999 resamples)
 ```
 
 Add `--json` for machine-readable output. Other subcommands: `sharpecheck mc
@@ -105,8 +106,9 @@ run|pilot|report` (Monte Carlo), `sharpecheck data fetch` (Ken French data) and
 These are short answers from the quick Monte Carlo profile ([REPORT.md](REPORT.md),
 `results/mc-quick/`):
 
-- **iid returns.** Every method gives about 95% coverage from T = 60. The exact
-  noncentral t is exact under normality.
+- **iid returns.** The analytic and HAC methods cover 92-96% from T = 60 (the low end is
+  Student t5 at T = 60), and `boot_ts` over-covers there (98% under normal returns). The
+  exact noncentral t is exact under normality.
 - **Autocorrelated returns** (AR(1), phi = 0.2). The iid formulas cover about 89%. Use
   `ar1`, `hac_pw` or `boot_ts`; these give 93-97%.
 - **Skewed, crash-prone returns.** `iid_normal` and `exact_nct` stay near 83% at SR =

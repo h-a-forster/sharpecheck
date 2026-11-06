@@ -38,8 +38,7 @@ optimised portfolios" application on Ken French data.
 - Scratch files go in `tmp/` (gitignored). Do not create `.bak` copies; use git.
 - No personal names, local user paths or machine details in committed files; scrub logs
   before committing anything derived from them.
-- Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Do not push
-  and do not create remote repositories; publishing is done separately after review.
+- Do not push or create remote repositories; publishing is done separately after review.
 - Statistical honesty: report sizes, seeds, versions, data vintage and intervals; apply the
   multiple-testing control DESIGN specifies; never overstate. Before calling anything a
   third-party bug, produce a minimal repro and rule out an adapter or convention mistake
@@ -94,7 +93,7 @@ watch the progress log.
 
 ## Status and next steps
 
-Updated: 2026-10-30.
+Updated: 2026-11-06.
 
 Done:
 - Scaffold: package layout with typed stubs, CI, hygiene files, configs.
@@ -170,22 +169,17 @@ Done:
   known upstream (`docs/upstream/scipy-nct-cdf.md`); release notes
   `docs/release-notes-0.1.0.md`.
 
-Next:
-- Tag v0.1.0 and confirm CI passes on GitHub (it has not run there yet).
-- Full Monte Carlo profile (`configs/mc_full.toml`, about 23 wall-hours): run in sessions
-  with `--max-minutes 40` under the retry wrapper; resume skips finished units. Then
-  `mc report` and update REPORT.md.
-- HAC bandwidth alternatives (Newey-West 1994, fixed-b) under GARCH/regime, and a
-  larger or calibrated bootstrap block in the Monte Carlo; these target the main
-  under-coverage finding.
-- Portfolio: calibrated block (`calibrate_block = true`) and model confidence set
-  (both "should" items, not run).
-- Upstream: SciPy #25470 tracks the `nct.cdf` NaN; Boost.Math fixed it in `develop`
-  (PR #1529). Remove nothing from `single.nct_cdf` until a SciPy release ships the fix.
-- Optional: a way to override a changed run-store input without `--force-new` deleting
-  finished units (not needed now that the version is no longer an input).
+- Release audit (2026-11-06): stored Monte Carlo units replay identically on the current
+  code, the Monte Carlo fast paths match `sharpe_ci` replication by replication, reports
+  regenerate byte for byte, LW Table 1 matches the journal PDF. Fixes for constant series,
+  `ofdr`, `--json`, the zero bandwidth, unknown experiments, ignored portfolio options and
+  the stale README example: `docs/release-notes-0.1.0.md`.
+
+Open work is in `backlog.md`.
 
 Open questions recorded for later milestones:
-- LW 2008 VAR DGPs: "mean 1, variance 1" read as the stationary law (DESIGN 6.3.2).
+- LW 2008 VAR DGPs: "mean 1, variance 1" read as the stationary law (DESIGN 6.3.2). The
+  paper does not say which; its B matrix prints as `[[0.90, 0.89], [0.90, 0.89]]` and is
+  read as symmetric, because the text says all diagonals are equal.
 - A lead in the LZL replication code (`moments_Mk`, `(1 - rho)` vs `sqrt(1 - rho)`) is
   unverified and must not be reported without a repro (DESIGN 7.3).

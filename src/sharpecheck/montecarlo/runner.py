@@ -564,6 +564,9 @@ def run_config(
     experiments: tuple[str, ...] = EXPERIMENTS,
 ) -> Path:
     """Run (or resume) the units of an already-loaded config into ``root``."""
+    unknown = sorted(set(experiments) - set(EXPERIMENTS))
+    if unknown or not experiments:
+        raise ValueError(f"experiments must be a subset of {EXPERIMENTS}, got {experiments}")
     store = open_store(cfg, root, force_new=force_new)
     units = [(u, a) for u, a in build_units(cfg) if a["experiment"] in experiments]
     stats_ = run_units(

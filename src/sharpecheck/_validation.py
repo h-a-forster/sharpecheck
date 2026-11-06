@@ -8,6 +8,15 @@ from numpy.typing import ArrayLike, NDArray
 FloatArray = NDArray[np.float64]
 
 
+def zero_variance(var: ArrayLike, mean: ArrayLike) -> NDArray[np.bool_]:
+    """True where a variance is zero up to the rounding of the mean.
+
+    A constant series has a variance of order ``(eps * mean)^2``, not exactly 0. Its Sharpe
+    ratio is undefined, not huge. ``var`` must be computed from demeaned values.
+    """
+    return ~(np.asarray(var) > (1e-14 * np.abs(mean)) ** 2)
+
+
 def as_float_1d(x: ArrayLike, name: str, min_len: int = 2) -> FloatArray:
     """Return ``x`` as a finite 1-D float64 array of length >= ``min_len`` or raise."""
     a = np.asarray(x, dtype=np.float64)

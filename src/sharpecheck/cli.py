@@ -78,6 +78,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _print_json(obj: Any) -> None:
+    """Print strict JSON: NaN becomes null, as bare ``NaN`` breaks other JSON parsers."""
+    from sharpecheck.checkpoint import _jsonable
+
+    print(json.dumps(_jsonable(obj), indent=2, default=str, allow_nan=False))
+
+
 def _read_column(path: Path, column: str | None) -> tuple[str, Any]:
     import pandas as pd
 
@@ -131,11 +138,11 @@ def _cmd_sr(args: argparse.Namespace) -> int:
         "mintrl_null": min_track_record_length(m.sr, args.sr0, m.g3, m.g4, variance_at="null"),
     }
     if args.json:
-        print(json.dumps(out, indent=2, default=str))
+        _print_json(out)
         return 0
     print(f"{col}: T = {m.nobs}, per-period SR = {m.sr:.4f} (mean {m.mean:.4g}, sd {m.sd:.4g})")
     print(f"skewness {m.g3:.3f}, kurtosis {m.g4:.3f} (non-excess), lag-1 autocorr {m.rho1:.3f}")
-    print(f"\n{int(args.level * 100)}% two-sided intervals for the per-period SR:")
+    print(f"\n{args.level * 100:g}% two-sided intervals for the per-period SR:")
     print(f"  {'method':<11} {'lower':>9} {'upper':>9} {'se':>9}")
     for r in rows:
         print(f"  {r['method']:<11} {r['lower']:>9.4f} {r['upper']:>9.4f} {r['se']:>9.4f}")
@@ -161,7 +168,7 @@ def _cmd_compare(args: argparse.Namespace) -> int:
         lw_boot_test(a, b, block=args.block, n_boot=args.n_boot, seed=args.seed),
     ]
     if args.json:
-        print(json.dumps([r.to_dict() for r in res], indent=2, default=str))
+        _print_json([r.to_dict() for r in res])
         return 0
     d = res[1].details["delta"]
     print(f"SR({args.col1}) - SR({args.col2}) = {d:.4f} per period, T = {a.size}")

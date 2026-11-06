@@ -24,7 +24,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy import optimize, stats
 
-from sharpecheck._validation import FloatArray, as_float_1d, check_level
+from sharpecheck._validation import FloatArray, as_float_1d, check_level, zero_variance
 from sharpecheck.moments import sample_moments
 from sharpecheck.results import SharpeInterval, TestResult
 
@@ -211,8 +211,8 @@ def hac_se(x: ArrayLike, *, prewhiten: bool = False) -> tuple[float, float, dict
     t = a.size
     mu = float(a.mean())
     gam = float(np.mean(a * a))
-    var = gam - mu * mu
-    if not var > 0:
+    var = float(np.mean((a - mu) ** 2))
+    if zero_variance(var, mu):
         return math.nan, math.nan, {"reason": "zero variance"}
     sr = mu / math.sqrt(var)
     grad = np.array([gam / var**1.5, -mu / (2 * var**1.5)])

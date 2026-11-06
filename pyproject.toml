@@ -16,7 +16,7 @@ keywords = [
     "deflated-sharpe-ratio", "multiple-testing", "portfolio", "monte-carlo", "quant",
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Financial and Insurance Industry",

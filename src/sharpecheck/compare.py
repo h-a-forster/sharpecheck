@@ -19,7 +19,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy import stats
 
-from sharpecheck._validation import FloatArray, as_float_1d, check_level
+from sharpecheck._validation import FloatArray, as_float_1d, check_level, zero_variance
 from sharpecheck.results import TestResult
 
 
@@ -45,7 +45,7 @@ def jkm_test(x1: ArrayLike, x2: ArrayLike) -> TestResult:
     a, b = _pair(x1, x2, 2)
     t = a.size
     sa, sb = a.std(), b.std()
-    if not (sa > 0 and sb > 0):
+    if zero_variance(sa * sa, a.mean()) or zero_variance(sb * sb, b.mean()):
         return TestResult("jkm", math.nan, math.nan, t, details={"reason": "zero variance"})
     sr1, sr2 = a.mean() / sa, b.mean() / sb
     rho = float(np.mean((a - a.mean()) * (b - b.mean())) / (sa * sb))
@@ -72,8 +72,8 @@ def lw_hac_se(x1: ArrayLike, x2: ArrayLike, *, prewhiten: bool = True) -> tuple[
     t = a.size
     m1, m2 = a.mean(), b.mean()
     g1, g2 = np.mean(a * a), np.mean(b * b)
-    v1, v2 = g1 - m1 * m1, g2 - m2 * m2
-    if not (v1 > 0 and v2 > 0):
+    v1, v2 = np.mean((a - m1) ** 2), np.mean((b - m2) ** 2)
+    if zero_variance(v1, m1) or zero_variance(v2, m2):
         return math.nan, math.nan
     delta = float(m1 / math.sqrt(v1) - m2 / math.sqrt(v2))
     grad = np.array([g1 / v1**1.5, -g2 / v2**1.5, -m1 / (2 * v1**1.5), m2 / (2 * v2**1.5)])
