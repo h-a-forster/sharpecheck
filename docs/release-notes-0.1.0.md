@@ -58,6 +58,8 @@ None of these changes a stored Monte Carlo or portfolio result: `mc report` and
 - SciPy 1.18.1 `stats.nct.cdf` returns NaN far in the left tail; `single.nct_cdf` works
   around it (`docs/upstream/scipy-nct-cdf.md`).
 - No transaction costs in the portfolio study; results depend on the Ken French data
-  vintage (202608).
+  vintage (202608). The out-of-sample return panel is not committed because the library
+  grants no redistribution rights, so the portfolio p-values (including p = 0.072) cannot
+  be regenerated after a revision (DESIGN section 13, item 16).
 
 See `CHANGELOG.md` for the full list of changes.

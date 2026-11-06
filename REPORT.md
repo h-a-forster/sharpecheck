@@ -287,7 +287,15 @@ were "should" items, `calibrate_block = false` in `configs/portfolio.toml`).
   coverage, as intended. It reaches 0.060 at T = 60 (crash, SR = 0.3) and 0.018 at
   T = 250 (`sr_variance.csv`).
 - **Portfolio study.** Results are tied to the data vintage, which the library revises.
-  There are no transaction costs. Turnover drifts weights with excess rather than total
+  The adjusted p = 0.072 cannot be regenerated from this repository once the library
+  revises its files: every p-value is computed from the out-of-sample monthly returns of
+  the 10 rule series (638 months), and that panel is not committed. Its size (134 KB as
+  CSV) is not the obstacle. The library's files carry a Fama and French copyright notice
+  and state no licence or redistribution terms, and the panel is month-by-month weighted
+  combinations of them, so it cannot go out under this repository's MIT licence without
+  permission. Only someone holding the 202608 files (SHA-256 in
+  `results/portfolio/summary.json`) can regenerate the number; a later vintage gives a
+  different one. There are no transaction costs. Turnover drifts weights with excess rather than total
   returns. There is no numerical comparison with DGU's tables (different sample).
 - **Not verified here.** CI has not yet run on GitHub (the workflow runs on pushes to
   `main`, pull requests and manual dispatch).

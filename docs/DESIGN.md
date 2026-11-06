@@ -611,7 +611,7 @@ block-size sensitivity table, the `upper` side of intervals.
 | `t5` kurtosis estimates make `mertens` erratic | that is a finding, reported with the `nan` count and width |
 | Small-T bias of SR_hat (order 1/T) lowers coverage at T = 60 | part of what is measured; truth is the population SR, not a simulated mean |
 | LW Table 1 mismatch from DGP ambiguity | ambiguities listed in 6.3.2; investigate before reporting; never claim an LW error without a repro |
-| Ken French data revised over time | manifest with SHA-256 and vintage; results name the vintage |
+| Ken French data revised over time | manifest with SHA-256 and vintage; results name the vintage. Not mitigated: published p-values cannot be regenerated after a revision (section 13, item 16) |
 | Unlicensed LZL code | cite values only; independent implementation |
 | nct numerics at large noncentrality | bisection on a bracket, fallback to the normal approximation with a `details` flag, tested at T = 2520 |
 
@@ -758,3 +758,11 @@ quantity, the code docstring says the same.
     rounding error is of order `eps gamma`, far above that threshold. `hac_se` and
     `lw_hac_se` therefore compute the variance from demeaned values. The Monte Carlo and
     the bootstrap resamples keep `gamma - mu^2`; a replayed unit is unchanged.
+16. **Out-of-sample panel not committed.** `portfolio report` needs `runs/portfolio/units/`
+    and the matching `data/` files, both gitignored, so the portfolio p-values cannot be
+    regenerated from a clone after the library revises its files. The panel (10 series x
+    638 months) would fit, at 134 KB, but it is not committed: the library page says
+    "Copyright Eugene F. Fama and Kenneth R. French" and states no licence or
+    redistribution terms (checked 2026-11-07), so nothing permits publishing
+    month-by-month weighted combinations of its returns under MIT. Committing the panel
+    needs that permission first (`backlog.md`).

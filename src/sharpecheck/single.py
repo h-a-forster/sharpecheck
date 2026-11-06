@@ -235,7 +235,7 @@ def sharpe_ci(
     *,
     block: int | None = None,
     n_boot: int = 999,
-    seed: int | None = None,
+    seed: int | np.random.Generator | None = None,
 ) -> SharpeInterval:
     """Confidence interval for the per-period Sharpe ratio of ``x`` by ``method``.
 

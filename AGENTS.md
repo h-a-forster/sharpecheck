@@ -33,7 +33,8 @@ optimised portfolios" application on Ken French data.
   (M6) and watch `runs/<name>/progress.log` for stalls.
 - Data: only the Kenneth R. French Data Library, with timeouts; record SHA-256 and the CRSP
   vintage in `data/manifest.json`. Never commit raw downloads (`data/`, `cache/` and
-  `runs/` are gitignored). Commit only small derived results under `results/`.
+  `runs/` are gitignored). Commit only small derived results under `results/`; monthly
+  return series built from the library are redistribution, not summaries (DESIGN 13.16).
 - The LZL (2025) replication code has no licence: cite its numbers, never copy its code.
 - Scratch files go in `tmp/` (gitignored). Do not create `.bak` copies; use git.
 - No personal names, local user paths or machine details in committed files; scrub logs

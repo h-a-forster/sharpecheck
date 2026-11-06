@@ -20,6 +20,7 @@ from sharpecheck.montecarlo.dgps import (
     simulate_pair,
     simulate_trials,
 )
+from sharpecheck.single import psr_test, sharpe_ci
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -115,6 +116,35 @@ def _tiny_config(out_dir: Path) -> dict:
     )
     cfg["run"] = {"workers": 3, "out_dir": str(out_dir.as_posix())}
     return runner.validate_config(cfg)
+
+
+@pytest.mark.parametrize("dgp", ["normal", "crash", "regime"])
+def test_coverage_bounds_match_public_api(dgp: str) -> None:
+    """Every Monte Carlo interval and PSR equals the library's, replication by replication."""
+    x = simulate(dgp, 0.3, 60, 8, np.random.default_rng(7))  # type: ignore[arg-type]
+    x[3] = 0.1  # constant series: undefined in both
+    n_boot, level, truth, seed = 99, 0.95, 0.3, 11
+    b = runner._coverage_bounds(
+        x,
+        truth,
+        level,
+        list(runner.COVERAGE_METHODS),
+        x.shape[0],
+        n_boot,
+        np.random.default_rng(seed),
+    )
+    assert set(b["intervals"]) == set(runner.COVERAGE_METHODS)
+    for method, bounds in b["intervals"].items():
+        # Each side replays the runner's bootstrap stream from the same start.
+        g2, g1 = np.random.default_rng(seed), np.random.default_rng(seed)
+        two = [sharpe_ci(r, method, level, n_boot=n_boot, seed=g2) for r in x]
+        one = [sharpe_ci(r, method, level, "lower", n_boot=n_boot, seed=g1) for r in x]
+        lib = ([c.lower for c in two], [c.upper for c in two], [c.lower for c in one])
+        for got, want in zip(bounds, lib, strict=True):
+            np.testing.assert_allclose(got, want, rtol=1e-9, atol=1e-9, err_msg=method)
+    for key, conv in (("p_obs", "observed"), ("p_null", "null")):
+        lib_p = [psr_test(r, truth, variance_at=conv).statistic for r in x]
+        np.testing.assert_allclose(b[key], lib_p, rtol=1e-12, err_msg=conv)
 
 
 def test_build_units_and_boot_allocation(tmp_path: Path) -> None:

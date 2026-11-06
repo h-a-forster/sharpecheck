@@ -241,19 +241,38 @@ def _tally(
     counts["ratio_n"] += int(np.sum(r_ok))
 
 
-def _coverage_unit(a: Mapping[str, Any]) -> dict[str, Any]:
+def _psr_batch(
+    sr: np.ndarray, sr0: float, t: int, g3: np.ndarray, g4: np.ndarray, variance_at: str
+) -> np.ndarray:
+    """Vectorised ``single.psr`` with ``rho = 0``; ``nan`` where the variance is not positive."""
+    s = sr if variance_at == "observed" else sr0
+    n = t - 1 if variance_at == "observed" else t
+    v = 1 - g3 * s + (g4 - 1) / 4 * s * s
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return stats.norm.cdf((sr - sr0) * np.sqrt(n / np.where(v > 0, v, np.nan)))
+
+
+def _coverage_bounds(
+    x: np.ndarray,
+    truth: float,
+    level: float,
+    methods: list[str],
+    boot_reps: int,
+    n_boot: int,
+    boot_rng: np.random.Generator,
+) -> dict[str, Any]:
+    """Per-replication bounds and PSR values of a (reps x T) batch.
+
+    These loops and vector formulas are fast mirrors of ``sharpe_ci`` and ``psr_test``. The
+    coverage table is only evidence about the library while the two agree, which
+    ``tests/test_montecarlo.py`` pins replication by replication.
+    """
     from sharpecheck.bootstrap import default_block, sr_tstar
     from sharpecheck.hac import long_run_cov
     from sharpecheck.moments import batch_moments
-    from sharpecheck.montecarlo.dgps import simulate
     from sharpecheck.single import RHO_CLIP, nct_delta_roots, variance_terms
 
-    rng = np.random.default_rng(unit_seed(a["seed"], a["uid"]))
-    t, truth, level = int(a["nobs"]), float(a["sr"]), float(a["level"])
-    reps, boot_reps = int(a["reps"]), int(a["boot_reps"])
-    methods = list(a["methods"])
-    x = simulate(a["dgp"], truth, t, reps, rng)
-    boot_rng = np.random.default_rng(rng.integers(2**63))
+    reps, t = x.shape
     m = batch_moments(x)
     sr, g3, g4, rho1 = m["sr"], m["g3"], m["g4"], m["rho1"]
     z2 = float(stats.norm.ppf(1 - (1 - level) / 2))
@@ -339,7 +358,7 @@ def _coverage_unit(a: Mapping[str, Any]) -> dict[str, Any]:
         for i in range(boot_reps):
             if not (np.isfinite(se_pw[i]) and np.isfinite(sr[i])):
                 continue
-            ts = sr_tstar(x[i], blk, int(a["n_boot"]), boot_rng, float(sr[i]))
+            ts = sr_tstar(x[i], blk, n_boot, boot_rng, float(sr[i]))
             ts = ts[np.isfinite(ts)]
             if ts.size == 0:
                 continue
@@ -351,17 +370,33 @@ def _coverage_unit(a: Mapping[str, Any]) -> dict[str, Any]:
         intervals["boot_ts"] = (lo2, hi2, lo1)
         out["timing"]["boot_ts"] = time.perf_counter() - t0
         out["timing"]["boot_per_rep"] = out["timing"]["boot_ts"] / boot_reps
-    for name, (lo2, hi2, lo1) in intervals.items():
+    out["intervals"], out["ref_w"], out["sr"] = intervals, ref_w, sr
+    out["p_obs"] = _psr_batch(sr, truth, t, g3, g4, "observed")
+    out["p_null"] = _psr_batch(sr, truth, t, g3, g4, "null")
+    return out
+
+
+def _coverage_unit(a: Mapping[str, Any]) -> dict[str, Any]:
+    from sharpecheck.montecarlo.dgps import simulate
+
+    rng = np.random.default_rng(unit_seed(a["seed"], a["uid"]))
+    t, truth, level = int(a["nobs"]), float(a["sr"]), float(a["level"])
+    reps = int(a["reps"])
+    x = simulate(a["dgp"], truth, t, reps, rng)
+    boot_rng = np.random.default_rng(rng.integers(2**63))
+    b = _coverage_bounds(
+        x, truth, level, list(a["methods"]), int(a["boot_reps"]), int(a["n_boot"]), boot_rng
+    )
+    sr, p_obs, p_null = b["sr"], b["p_obs"], b["p_null"]
+    out: dict[str, Any] = {"methods": {}, "timing": b["timing"]}
+    if "nct_fallback" in b:
+        out["nct_fallback"] = b["nct_fallback"]
+    for name, (lo2, hi2, lo1) in b["intervals"].items():
         c = _zero_counts()
         n = lo2.size
-        _tally(c, truth, lo2, hi2, lo1, ref_w[:n])
+        _tally(c, truth, lo2, hi2, lo1, b["ref_w"][:n])
         out["methods"][name] = c
     # PSR one-sided tests of H0: SR <= truth, both conventions (reject when PSR > level).
-    with np.errstate(invalid="ignore", divide="ignore"):
-        v_obs = 1 - g3 * sr + (g4 - 1) / 4 * sr * sr
-        p_obs = stats.norm.cdf((sr - truth) * np.sqrt((t - 1) / np.where(v_obs > 0, v_obs, np.nan)))
-        v_null = 1 - g3 * truth + (g4 - 1) / 4 * truth * truth
-        p_null = stats.norm.cdf((sr - truth) * np.sqrt(t / np.where(v_null > 0, v_null, np.nan)))
     out["psr"] = {
         "observed": {
             "n": reps,
@@ -450,9 +485,7 @@ def _dsr_unit(a: Mapping[str, Any]) -> dict[str, Any]:
     implied = 0.0
 
     def psr_obs(srv: np.ndarray, sr0: float, g3v: np.ndarray, g4v: np.ndarray) -> np.ndarray:
-        v = 1 - g3v * srv + (g4v - 1) / 4 * srv * srv
-        with np.errstate(invalid="ignore", divide="ignore"):
-            return stats.norm.cdf((srv - sr0) * np.sqrt((t - 1) / np.where(v > 0, v, np.nan)))
+        return _psr_batch(srv, sr0, t, g3v, g4v, "observed")
 
     for _ in range(reps):
         x = simulate_trials(n, t, rho, rng, dist=a["dist"])

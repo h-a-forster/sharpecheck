@@ -174,4 +174,5 @@ and cite the papers behind the methods you use. They are listed in `docs/DESIGN.
 
 MIT. See [LICENSE](LICENSE). Ken French data are not redistributed; `sharpecheck data
 fetch` downloads them from the Kenneth R. French Data Library and records SHA-256
-checksums.
+checksums. That includes the monthly return panel derived from them, so the portfolio
+p-values cannot be regenerated after the library revises its files (REPORT section 6).
