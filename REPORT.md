@@ -297,5 +297,5 @@ were "should" items, `calibrate_block = false` in `configs/portfolio.toml`).
   `results/portfolio/summary.json`) can regenerate the number; a later vintage gives a
   different one. There are no transaction costs. Turnover drifts weights with excess rather than total
   returns. There is no numerical comparison with DGU's tables (different sample).
-- **Not verified here.** CI has not yet run on GitHub (the workflow runs on pushes to
-  `main`, pull requests and manual dispatch).
+- **CI.** The workflow runs on GitHub on pushes to `main`, pull requests and manual
+  dispatch; it has passed there since 2026-11-08.

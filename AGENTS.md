@@ -39,7 +39,8 @@ optimised portfolios" application on Ken French data.
 - Scratch files go in `tmp/` (gitignored). Do not create `.bak` copies; use git.
 - No personal names, local user paths or machine details in committed files; scrub logs
   before committing anything derived from them.
-- Do not push or create remote repositories; publishing is done separately after review.
+- The repository is public on GitHub; pushes, tags and releases are done by the owner
+  after review.
 - Statistical honesty: report sizes, seeds, versions, data vintage and intervals; apply the
   multiple-testing control DESIGN specifies; never overstate. Before calling anything a
   third-party bug, produce a minimal repro and rule out an adapter or convention mistake
