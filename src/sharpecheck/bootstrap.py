@@ -23,7 +23,7 @@ def default_block(nobs: int) -> int:
     """Default block size ``max(1, round(nobs ** (1/3)))`` (DESIGN 4.4)."""
     if nobs < 1:
         raise ValueError(f"nobs must be positive, got {nobs}")
-    return max(1, round(nobs ** (1 / 3)))
+    return max(1, round(math.pow(nobs, 1 / 3)))
 
 
 def _check_block(nobs: int, block: int) -> int:
@@ -168,7 +168,8 @@ def iid_se_diff(a: FloatArray) -> FloatArray:
     """
     _, h = _projected_block_sums(a[None, :, :], 1)  # (1, T, k)
     hd = h[0, :, 1:] - h[0, :, :1]
-    return np.sqrt(np.mean(hd * hd, axis=0) / a.shape[0])
+    se: FloatArray = np.sqrt(np.mean(hd * hd, axis=0) / a.shape[0])
+    return se
 
 
 def diff_tstar(
@@ -185,7 +186,7 @@ def diff_tstar(
     hd = h[:, :, 1:] - h[:, :, :1]
     with np.errstate(divide="ignore", invalid="ignore"):
         se_star = np.sqrt(np.mean(hd * hd, axis=1) / t)
-        tstar = (dstar - np.asarray(delta_hat)[None, :]) / se_star
+        tstar: FloatArray = (dstar - np.asarray(delta_hat)[None, :]) / se_star
     tstar[~np.isfinite(tstar)] = np.nan
     return tstar
 

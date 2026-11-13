@@ -51,7 +51,15 @@ Changelog = "https://github.com/h-a-forster/sharpecheck/blob/main/CHANGELOG.md"
 sharpecheck = "sharpecheck.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6", "matplotlib>=3.8", "scikit-learn>=1.4"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "matplotlib>=3.8",
+    "scikit-learn>=1.4",
+    "mypy==2.4.1",
+    "pandas-stubs==3.1.0.261029 ; python_full_version >= '3.12'",
+    "scipy-stubs==1.18.1.1 ; python_full_version >= '3.12'",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sharpecheck"]
@@ -65,6 +73,15 @@ include = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[[tool.mypy.overrides]]
+# threadpoolctl ships neither types nor a py.typed marker.
+module = ["threadpoolctl"]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 100

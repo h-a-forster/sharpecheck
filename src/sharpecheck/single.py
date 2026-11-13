@@ -21,7 +21,7 @@ import math
 from typing import Any, Literal
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 from scipy import optimize, stats
 
 from sharpecheck._validation import FloatArray, as_float_1d, check_level, zero_variance
@@ -129,7 +129,7 @@ def nct_cdf(tstat: ArrayLike, df: int, delta: ArrayLike) -> FloatArray:
 
 def nct_delta_roots(
     tstat: ArrayLike, df: int, probs: ArrayLike, *, iterations: int = 60
-) -> tuple[FloatArray, FloatArray]:
+) -> tuple[FloatArray, NDArray[np.bool_]]:
     """Solve ``nct.cdf(t, df, delta) = p`` for ``delta`` by vectorised bisection.
 
     ``tstat`` and ``probs`` broadcast. The CDF is decreasing in ``delta``. Returns

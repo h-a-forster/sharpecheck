@@ -88,10 +88,12 @@ def model_confidence_set(
     Returns ``{"included": [...], "excluded": [...], "pvalues": {model: p}}`` with column
     indices (or names for a DataFrame).
     """
+    import pandas as pd
     from arch.bootstrap import MCS
 
+    data = losses if isinstance(losses, pd.DataFrame) else np.asarray(losses, dtype=np.float64)
     mcs = MCS(
-        losses, size, reps=reps, block_size=block, method="max", bootstrap="stationary", seed=seed
+        data, size, reps=reps, block_size=block, method="max", bootstrap="stationary", seed=seed
     )
     mcs.compute()
     pv = mcs.pvalues.iloc[:, 0]

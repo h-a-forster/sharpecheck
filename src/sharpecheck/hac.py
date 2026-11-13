@@ -57,7 +57,8 @@ def andrews_bandwidth(y: ArrayLike, kernel: Kernel = "qs") -> float:
     the bandwidth is 1 (small, harmless because the covariance beyond lag 0 is then ~0).
     """
     _check_kernel(kernel)
-    a = as_float_2d(np.asarray(y, dtype=np.float64).reshape(len(y), -1), "y", min_rows=3)
+    arr = np.asarray(y, dtype=np.float64)
+    a = as_float_2d(arr.reshape(arr.shape[0], -1) if arr.ndim else arr, "y", min_rows=3)
     t = a.shape[0]
     a = a - a.mean(axis=0)
     num1 = num2 = den = 0.0
@@ -92,7 +93,8 @@ def autocovariances(y: FloatArray) -> FloatArray:
     f = np.fft.rfft(y, n=nfft, axis=0)
     # c[j, a, b] = sum_t y_{t+j, a} y_{t, b}
     c = np.fft.irfft(f[:, :, None] * np.conj(f[:, None, :]), n=nfft, axis=0)[:t]
-    return c / t
+    out: FloatArray = c / t
+    return out
 
 
 def kernel_sum(y: FloatArray, kernel: Kernel, bandwidth: float) -> FloatArray:
@@ -108,7 +110,8 @@ def kernel_sum(y: FloatArray, kernel: Kernel, bandwidth: float) -> FloatArray:
             g[j] = y[j:].T @ y[: t - j] / t
         w = kernel_weights(np.arange(lmax + 1), bandwidth, kernel)
     s = np.tensordot(w[1:], g[1:], axes=1) if len(w) > 1 else np.zeros((k, k))
-    return g[0] + s + s.T
+    out: FloatArray = g[0] + s + s.T
+    return out
 
 
 def long_run_cov(
@@ -148,7 +151,7 @@ def long_run_cov(
     sd = a.std(axis=0)
     sd = np.where(sd > 0, sd, 1.0)
     a = a / sd
-    scale = t / (t - dof_adjust) * np.outer(sd, sd)
+    scale: FloatArray = t / (t - dof_adjust) * np.outer(sd, sd)
     if not prewhiten:
         bw = andrews_bandwidth(a, kernel) if bandwidth is None else float(bandwidth)
         return scale * kernel_sum(a, kernel, bw)

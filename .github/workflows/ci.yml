@@ -34,6 +34,9 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check .
 
+      - name: Type check
+        run: uv run mypy
+
   test:
     name: test (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}

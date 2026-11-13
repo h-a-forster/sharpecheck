@@ -17,6 +17,7 @@ uv run sharpecheck --version
 uv run pytest              # fast suite; add --runslow for long Monte Carlo checks
 uv run ruff check .
 uv run ruff format --check .
+uv run mypy                # strict type check of src/ (Python >= 3.12)
 ```
 
 CI runs these on pull requests and pushes to `main` (Ubuntu with Python 3.11 and 3.13, Windows with Python 3.13).

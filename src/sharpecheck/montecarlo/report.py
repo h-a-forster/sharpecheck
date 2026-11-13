@@ -77,12 +77,12 @@ def coverage_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) ->
             continue
         rec = store.read(uid)
         cell = (a["dgp"], a["sr"], a["nobs"])
-        fallback[cell] = fallback.get(cell, 0) + int(rec.get("nct_fallback", 0))  # type: ignore[call-overload]
-        for m, c in rec["methods"].items():  # type: ignore[union-attr]
+        fallback[cell] = fallback.get(cell, 0) + int(rec.get("nct_fallback", 0))
+        for m, c in rec["methods"].items():
             acc = agg.setdefault((*cell, m), {})
             for k, v in c.items():
                 acc[k] = acc.get(k, 0) + v
-        for conv, c in rec["psr"].items():  # type: ignore[union-attr]
+        for conv, c in rec["psr"].items():
             acc = psr.setdefault((*cell, f"psr_{conv}"), {})
             for k, v in c.items():
                 acc[k] = acc.get(k, 0) + v
@@ -134,7 +134,7 @@ def onesided_table(cov: pd.DataFrame) -> pd.DataFrame:
             "nan",
         ]
     ]
-    b = cov.attrs["psr"]
+    b: pd.DataFrame = cov.attrs["psr"]
     out = pd.concat([a, b], ignore_index=True)
     return out.sort_values(["dgp", "sr", "nobs", "method"]).reset_index(drop=True)
 
@@ -145,7 +145,7 @@ def difference_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) 
         if a["experiment"] != "difference":
             continue
         rec = store.read(uid)
-        for m, c in rec["methods"].items():  # type: ignore[union-attr]
+        for m, c in rec["methods"].items():
             acc = agg.setdefault((a["dgp"], m), {"n": 0, "nan": 0, "reject": {}})
             acc["n"] += c["n"]
             acc["nan"] += c["nan"]
@@ -183,9 +183,9 @@ def dsr_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) -> pd.D
             continue
         rec = store.read(uid)
         cell = (a["n_trials"], a["rho"], a["nobs"], a["dist"])
-        imp.setdefault(cell, []).append(float(rec["implied_n_mean"]) * a["reps"])  # type: ignore[arg-type]
+        imp.setdefault(cell, []).append(float(rec["implied_n_mean"]) * a["reps"])
         imp.setdefault((*cell, "n"), []).append(a["reps"])
-        for r, c in rec["rules"].items():  # type: ignore[union-attr]
+        for r, c in rec["rules"].items():
             acc = agg.setdefault((*cell, r), {})
             for k, v in c.items():
                 acc[k] = acc.get(k, 0) + v
@@ -226,9 +226,9 @@ def variance_table(store: UnitStore, units: list[tuple[str, dict[str, Any]]]) ->
             continue
         s = store.read(uid)["sr_hat"]
         v = acc.setdefault((a["dgp"], a["sr"], a["nobs"]), [0.0, 0.0, 0.0])
-        v[0] += s["n"]  # type: ignore[index]
-        v[1] += s["sum"]  # type: ignore[index]
-        v[2] += s["sumsq"]  # type: ignore[index]
+        v[0] += s["n"]
+        v[1] += s["sum"]
+        v[2] += s["sumsq"]
     rows = []
     for (dgp, sr, t), (n, sm, ss) in acc.items():
         pm = population_moments(dgp, sr)
@@ -324,7 +324,7 @@ def build_report(config_path: Path, out_dir: Path | None = None) -> Path:
         "versions": store.manifest.get("versions"),
         "started": store.manifest.get("started"),
     }
-    seconds = sum(float(store.read(u)["seconds"]) for u, _ in units)  # type: ignore[arg-type]
+    seconds = sum(float(store.read(u)["seconds"]) for u, _ in units)
     summary["cpu_seconds_in_units"] = round(seconds, 1)
     summary["n_units"] = len(units)
     if "coverage" in cfg:

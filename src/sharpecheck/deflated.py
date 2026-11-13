@@ -46,7 +46,8 @@ def max_normal_moments(n: float) -> tuple[float, float]:
         return 0.0, 1.0
 
     def dens(z: float) -> float:
-        return n * math.exp(-0.5 * z * z) / math.sqrt(2 * math.pi) * stats.norm.cdf(z) ** (n - 1)
+        phi = math.exp(-0.5 * z * z) / math.sqrt(2 * math.pi)
+        return n * phi * math.pow(float(stats.norm.cdf(z)), n - 1)
 
     lo, hi = -9.0, 9.0 + math.sqrt(2 * math.log(n))
     pts = [float(stats.norm.ppf(1 - 1 / (n + 1)))]

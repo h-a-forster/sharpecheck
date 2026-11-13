@@ -24,7 +24,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from concurrent.futures import FIRST_COMPLETED, BrokenExecutor, Future, ProcessPoolExecutor, wait
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -217,9 +217,10 @@ class UnitStore:
         _atomic_write_bytes(p, json.dumps(body, allow_nan=False).encode())
         return p
 
-    def read(self, unit_id: str) -> dict[str, object]:
+    def read(self, unit_id: str) -> dict[str, Any]:
+        """The stored JSON payload of a complete unit (its schema is the caller's)."""
         p = self.path(unit_id)
-        data: dict[str, object] = json.loads(p.read_text(encoding="utf-8"))
+        data: dict[str, Any] = json.loads(p.read_text(encoding="utf-8"))
         if not data.get("complete"):
             raise KeyError(f"unit {unit_id!r} is not complete")
         return data
@@ -229,7 +230,9 @@ class UnitStore:
         import io
 
         buf = io.BytesIO()
-        np.savez_compressed(buf, **arrays)
+        # numpy's stub types every ``**kwds`` key as possibly ``allow_pickle: bool``; the keys
+        # here are array names, and object arrays are refused on read (``allow_pickle=False``).
+        np.savez_compressed(buf, **cast("dict[str, Any]", arrays))
         p = self.units_dir / f"{safe_id(unit_id)}.npz"
         _atomic_write_bytes(p, buf.getvalue())
         return p

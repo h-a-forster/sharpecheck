@@ -646,7 +646,7 @@ def pilot(
     per_unit: dict[str, float] = {}
     for u, _a in build_units(pcfg):
         rec = store.read(u)
-        per_unit[u] = float(rec["seconds"])  # type: ignore[arg-type]
+        per_unit[u] = float(rec["seconds"])
     projection = 0.0
     detail: dict[str, float] = {}
     for _u, a in build_units(cfg):
@@ -654,9 +654,9 @@ def pilot(
         if exp == "coverage":
             pu = f"coverage|{a['dgp']}|sr={a['sr']}|T={a['nobs']}|c=0"
             rec = store.read(pu)
-            tm = rec["timing"]  # type: ignore[index]
-            boot = float(tm.get("boot_per_rep", 0.0))  # type: ignore[union-attr]
-            other = (float(rec["seconds"]) - boot * 50) / 50  # type: ignore[arg-type]
+            tm = rec["timing"]
+            boot = float(tm.get("boot_per_rep", 0.0))
+            other = (float(rec["seconds"]) - boot * 50) / 50
             est = a["reps"] * max(other, 0.0) + a["boot_reps"] * boot
         elif exp == "difference":
             pu = f"difference|{a['dgp']}|c=0"

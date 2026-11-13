@@ -14,6 +14,7 @@ SRs use the ddof-0 moment estimators throughout.
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -51,7 +52,7 @@ def jkm_test(x1: ArrayLike, x2: ArrayLike) -> TestResult:
     rho = float(np.mean((a - a.mean()) * (b - b.mean())) / (sa * sb))
     var = jkm_variance(float(sr1), float(sr2), rho, t)
     delta = float(sr1 - sr2)
-    det = {"delta": delta, "sr1": float(sr1), "sr2": float(sr2), "rho": rho}
+    det: dict[str, Any] = {"delta": delta, "sr1": float(sr1), "sr2": float(sr2), "rho": rho}
     if not var > 0:
         det["reason"] = "non-positive variance (perfectly correlated series)"
         return TestResult("jkm", math.nan, math.nan, t, details=det)

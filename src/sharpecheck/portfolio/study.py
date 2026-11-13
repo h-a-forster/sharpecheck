@@ -191,9 +191,9 @@ def build_report(config_path: Path, out_dir: Path | None = None) -> Path:
             if not store.done(uid):
                 raise RuntimeError(f"run not finished: {uid} missing")
             rec = store.read(uid)
-            idx = pd.PeriodIndex(rec["months"], freq="M")  # type: ignore[arg-type]
-            series[f"{name}:{rule}"] = pd.Series(rec["returns"], index=idx)  # type: ignore[arg-type]
-            turn[f"{name}:{rule}"] = float(rec["mean_turnover"])  # type: ignore[arg-type]
+            idx = pd.PeriodIndex(rec["months"], freq="M")
+            series[f"{name}:{rule}"] = pd.Series(rec["returns"], index=idx)
+            turn[f"{name}:{rule}"] = float(rec["mean_turnover"])
     panel = pd.DataFrame(series)
     if panel.isna().to_numpy().any():
         raise RuntimeError("out-of-sample months differ across datasets")
@@ -209,9 +209,10 @@ def build_report(config_path: Path, out_dir: Path | None = None) -> Path:
     n_boot, seed = int(inf["n_boot"]), int(cfg["seed"])
     out = Path(out_dir) if out_dir is not None else Path("results") / str(cfg["name"])
     out.mkdir(parents=True, exist_ok=True)
+    panel_months = pd.PeriodIndex(panel.index, freq="M")
     test_rows, summary_rows, sens_rows = [], [], []
     for period in inf["periods"]:
-        mask = _period_mask(panel.index, period["start"], period["end"])
+        mask = _period_mask(panel_months, period["start"], period["end"])
         x = panel.to_numpy()[mask]
         t = x.shape[0]
         blk = default_block(t)

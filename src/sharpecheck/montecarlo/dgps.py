@@ -31,10 +31,41 @@ PAIR_DGPS: tuple[str, ...] = (
     "t6-var",
 )
 
-GARCH = {"omega": 0.02, "alpha": 0.05, "beta": 0.93, "nu": 7.0, "burn": 1000}
+
+@dataclass(frozen=True)
+class GarchParams:
+    """GARCH(1,1) with standardized t(nu) innovations and ``burn`` burn-in periods."""
+
+    omega: float
+    alpha: float
+    beta: float
+    nu: float
+    burn: int
+
+
+@dataclass(frozen=True)
+class RegimeParams:
+    """Two-state Markov chain: stay probabilities, state sds, and state-2 minus state-1 mean."""
+
+    p11: float
+    p22: float
+    sd: tuple[float, float]
+    gap: float
+
+
+@dataclass(frozen=True)
+class CrashParams:
+    """Normal returns plus a crash component with probability ``p``."""
+
+    p: float
+    mean: float
+    sd: float
+
+
+GARCH = GarchParams(omega=0.02, alpha=0.05, beta=0.93, nu=7.0, burn=1000)
 AR_PHI = 0.2
-REGIME = {"p11": 0.98, "p22": 0.90, "sd": (0.8, 2.0), "gap": -0.5}
-CRASH = {"p": 0.01, "mean": -8.0, "sd": 2.0}
+REGIME = RegimeParams(p11=0.98, p22=0.90, sd=(0.8, 2.0), gap=-0.5)
+CRASH = CrashParams(p=0.01, mean=-8.0, sd=2.0)
 
 
 @dataclass(frozen=True)
@@ -64,19 +95,18 @@ def _mixture(
 
 
 def _regime_raw() -> tuple[float, float, float, float, float]:
-    p11, p22 = REGIME["p11"], REGIME["p22"]
+    p11, p22 = REGIME.p11, REGIME.p22
     pi1 = (1 - p22) / (2 - p11 - p22)
     pi2 = 1 - pi1
-    sds = REGIME["sd"]
-    means = (0.0, REGIME["gap"])
-    m, var, g3, g4 = _mixture((pi1, pi2), means, sds)  # type: ignore[arg-type]
+    means = (0.0, REGIME.gap)
+    m, var, g3, g4 = _mixture((pi1, pi2), means, REGIME.sd)
     acov1 = (p11 + p22 - 1) * pi1 * pi2 * (means[0] - means[1]) ** 2
     return m, var, g3, g4, acov1 / var
 
 
 def _crash_raw() -> tuple[float, float, float, float]:
-    p = CRASH["p"]
-    return _mixture((1 - p, p), (0.0, CRASH["mean"]), (1.0, CRASH["sd"]))
+    p = CRASH.p
+    return _mixture((1 - p, p), (0.0, CRASH.mean), (1.0, CRASH.sd))
 
 
 def garch_t_kurtosis(alpha: float, beta: float, nu: float) -> float:
@@ -93,7 +123,7 @@ def population_moments(name: DgpName, sr: float) -> PopulationMoments:
     if name == "t5":
         return PopulationMoments(sr, 1.0, sr, 0.0, 9.0, 0.0)
     if name == "garch-t7":
-        k = garch_t_kurtosis(GARCH["alpha"], GARCH["beta"], GARCH["nu"])
+        k = garch_t_kurtosis(GARCH.alpha, GARCH.beta, GARCH.nu)
         return PopulationMoments(sr, 1.0, sr, 0.0, k, 0.0)
     if name == "ar1-0.2":
         return PopulationMoments(sr, 1.0, sr, 0.0, 3.0, AR_PHI)
@@ -120,8 +150,7 @@ def simulate(
     if name == "t5":
         return sr + _std_t(rng, 5.0, shape)
     if name == "garch-t7":
-        om, al, be, nu = GARCH["omega"], GARCH["alpha"], GARCH["beta"], GARCH["nu"]
-        burn = int(GARCH["burn"])
+        om, al, be, nu, burn = GARCH.omega, GARCH.alpha, GARCH.beta, GARCH.nu, GARCH.burn
         z = _std_t(rng, nu, (nobs + burn, reps))
         h = np.full(reps, om / (1 - al - be))
         out = np.empty((nobs + burn, reps))
@@ -141,10 +170,10 @@ def simulate(
         return sr + out.T
     if name == "regime":
         m, var, *_ = _regime_raw()
-        p11, p22 = REGIME["p11"], REGIME["p22"]
+        p11, p22 = REGIME.p11, REGIME.p22
         pi1 = (1 - p22) / (2 - p11 - p22)
-        sd1, sd2 = REGIME["sd"]
-        mu1, mu2 = 0.0, REGIME["gap"]
+        sd1, sd2 = REGIME.sd
+        mu1, mu2 = 0.0, REGIME.gap
         u = rng.random((nobs, reps))
         state = np.empty((nobs, reps), dtype=bool)  # True = state 1
         state[0] = u[0] < pi1
@@ -157,9 +186,9 @@ def simulate(
         return (sr + (x - m) / math.sqrt(var)).T
     if name == "crash":
         m, var, *_ = _crash_raw()
-        crash = rng.random(shape) < CRASH["p"]
+        crash = rng.random(shape) < CRASH.p
         z = rng.standard_normal(shape)
-        x = np.where(crash, CRASH["mean"] + CRASH["sd"] * z, z)
+        x = np.where(crash, CRASH.mean + CRASH.sd * z, z)
         return sr + (x - m) / math.sqrt(var)
     raise ValueError(f"unknown DGP {name!r}; choose from {DGPS}")
 
@@ -177,14 +206,28 @@ def _bivariate(
     return z
 
 
+Matrix2 = tuple[tuple[float, float], tuple[float, float]]
+
+
+@dataclass(frozen=True)
+class LwGarchParams:
+    """Diagonal-vech bivariate GARCH(1,1): ``H_t = C + A * e e' + B * H_{t-1}`` elementwise."""
+
+    c: Matrix2
+    a: Matrix2
+    b: Matrix2
+    mean: float
+    burn: int
+
+
 # Ledoit and Wolf (2008) section 4.2 diagonal-vech GARCH(1,1) parameters.
-LW_GARCH = {
-    "c": ((0.15, 0.13), (0.13, 0.15)),
-    "a": ((0.075, 0.05), (0.05, 0.075)),
-    "b": ((0.90, 0.89), (0.89, 0.90)),
-    "mean": 16.5 / 52,
-    "burn": 1000,
-}
+LW_GARCH = LwGarchParams(
+    c=((0.15, 0.13), (0.13, 0.15)),
+    a=((0.075, 0.05), (0.05, 0.075)),
+    b=((0.90, 0.89), (0.89, 0.90)),
+    mean=16.5 / 52,
+    burn=1000,
+)
 
 
 def simulate_pair(name: str, nobs: int, reps: int, rng: np.random.Generator) -> FloatArray:
@@ -210,8 +253,8 @@ def simulate_pair(name: str, nobs: int, reps: int, rng: np.random.Generator) -> 
         for t in range(1, nobs):
             y[t] = phi * y[t - 1] + u[t]
         return 1.0 + np.transpose(y, (1, 0, 2))
-    c, a, b = (np.array(LW_GARCH[k]) for k in ("c", "a", "b"))
-    burn = int(LW_GARCH["burn"])
+    c, a, b = (np.array(m) for m in (LW_GARCH.c, LW_GARCH.a, LW_GARCH.b))
+    burn = LW_GARCH.burn
     total = nobs + burn
     if dist == "normal":
         z = rng.standard_normal((total, reps, 2))
@@ -235,7 +278,7 @@ def simulate_pair(name: str, nobs: int, reps: int, rng: np.random.Generator) -> 
         h11 = c[0, 0] + a[0, 0] * e1 * e1 + b[0, 0] * h11
         h22 = c[1, 1] + a[1, 1] * e2 * e2 + b[1, 1] * h22
         h12 = c[0, 1] + a[0, 1] * e1 * e2 + b[0, 1] * h12
-    return LW_GARCH["mean"] + np.transpose(out[burn:], (1, 0, 2))
+    return LW_GARCH.mean + np.transpose(out[burn:], (1, 0, 2))
 
 
 def simulate_trials(

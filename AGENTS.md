@@ -75,6 +75,7 @@ uv run pytest                 # fast suite (CI)
 uv run pytest --runslow       # plus slow Monte Carlo checks
 uv run ruff check .
 uv run ruff format --check .
+uv run mypy                   # strict, src/ (needs Python >= 3.12 for the stubs)
 uv run python scripts/reference_values.py
 ```
 

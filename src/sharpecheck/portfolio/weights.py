@@ -87,7 +87,7 @@ def hrp(cov: ArrayLike) -> FloatArray:
     corr = np.clip(c / np.outer(sd, sd), -1.0, 1.0)
     d = np.sqrt((1 - corr) / 2)
     link = linkage(pdist(d), method="single")
-    order = list(leaves_list(link))
+    order = [int(i) for i in leaves_list(link)]
     w = np.ones(n)
     clusters = [order]
     while clusters:
