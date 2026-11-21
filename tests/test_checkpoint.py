@@ -184,5 +184,23 @@ def test_read_only_creates_nothing(tmp_path: Path) -> None:
         UnitStore(tmp_path, "other", read_only=True)
 
 
-def test_workers_clipped_to_three() -> None:
+def test_worker_limit_follows_cpu_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sharpecheck.cli import build_parser
+
     assert checkpoint.MAX_WORKERS == 3
+    monkeypatch.setattr(checkpoint.os, "cpu_count", lambda: 4)
+    assert checkpoint.worker_limit() == 3  # never below the default
+    monkeypatch.setattr(checkpoint.os, "cpu_count", lambda: 10)
+    assert checkpoint.worker_limit() == 8
+    parser = build_parser()
+    assert parser.parse_args(["mc", "run", "--config", "c.toml"]).workers == 3
+    assert parser.parse_args(["mc", "run", "--config", "c.toml", "--workers", "8"]).workers == 8
+    with pytest.raises(SystemExit):  # too many fails loudly instead of shrinking
+        parser.parse_args(["mc", "run", "--config", "c.toml", "--workers", "9"])
+    cfg = {"name": "x", "seed": 1, "level": 0.95, "chunk": 1, "run": {"workers": 8}}
+    from sharpecheck.montecarlo.runner import validate_config
+
+    validate_config(cfg)
+    cfg["run"]["workers"] = 9
+    with pytest.raises(ValueError, match="<= 8"):
+        validate_config(cfg)

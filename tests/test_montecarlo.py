@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from sharpecheck.checkpoint import worker_limit
 from sharpecheck.montecarlo import report, runner
 from sharpecheck.montecarlo.dgps import (
     DGPS,
@@ -164,7 +165,7 @@ def test_validate_config_rejects_bad_values(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         runner.validate_config(bad)
     bad = json.loads(json.dumps(cfg))
-    bad["run"]["workers"] = 8
+    bad["run"]["workers"] = worker_limit() + 1
     with pytest.raises(ValueError):
         runner.validate_config(bad)
     bad = json.loads(json.dumps(cfg))

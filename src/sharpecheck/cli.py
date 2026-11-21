@@ -9,6 +9,15 @@ from pathlib import Path
 from typing import Any
 
 from sharpecheck import __version__
+from sharpecheck.checkpoint import MAX_WORKERS, worker_limit
+
+
+def _workers(text: str) -> int:
+    """``--workers``: 1 to :func:`worker_limit`; a larger request fails instead of shrinking."""
+    n = int(text)
+    if not 1 <= n <= worker_limit():
+        raise argparse.ArgumentTypeError(f"must be between 1 and {worker_limit()} on this machine")
+    return n
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
         p = mc_sub.add_parser(name, help=help_text)
         p.add_argument("--config", type=Path, required=True)
         if name != "report":
-            p.add_argument("--workers", type=int, default=3)
+            p.add_argument("--workers", type=_workers, default=MAX_WORKERS)
         if name == "run":
             p.add_argument("--force-new", action="store_true")
             p.add_argument("--max-minutes", type=float, default=None)
@@ -72,7 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
         p = pf_sub.add_parser(name)
         p.add_argument("--config", type=Path, required=True)
         if name == "run":
-            p.add_argument("--workers", type=int, default=3)
+            p.add_argument("--workers", type=_workers, default=MAX_WORKERS)
         else:
             p.add_argument("--out", type=Path, default=None)
     return parser

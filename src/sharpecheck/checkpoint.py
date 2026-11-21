@@ -32,6 +32,15 @@ MAX_WORKERS = 3
 _THREAD_VARS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
 
 
+def worker_limit() -> int:
+    """Most worker processes allowed here: ``os.cpu_count() - 2``, never below MAX_WORKERS.
+
+    :data:`MAX_WORKERS` is the default worker count (sized for a shared laptop); a larger
+    machine may ask for more, leaving two cores free.
+    """
+    return max(MAX_WORKERS, (os.cpu_count() or 1) - 2)
+
+
 class ConfigMismatchError(RuntimeError):
     """The store was created for a different configuration or different inputs."""
 
@@ -321,14 +330,14 @@ def run_units(
     """Run ``fn(arg)`` for every ``(unit_id, arg)`` not yet done and store each result.
 
     ``fn`` must be a picklable module-level function when ``workers > 1``. At most
-    :data:`MAX_WORKERS` processes are used; each sets BLAS thread counts to 1. With
+    :func:`worker_limit` processes are used; each sets BLAS thread counts to 1. With
     ``on_error="log"`` a failing unit is logged and skipped (it stays not-done, so a rerun
     retries it), and a worker process that dies ends the session the same way; with
     ``"raise"`` the first failure propagates after finished units are saved.
     With ``max_seconds`` no new unit is started after that much wall time; units already
     running finish and are stored, and ``stats["stopped"]`` is 1 (a rerun resumes).
     """
-    workers = max(1, min(int(workers), MAX_WORKERS))
+    workers = max(1, min(int(workers), worker_limit()))
     total = len(units)
     todo = [(u, a) for u, a in units if not store.done(u)]
     n_done = total - len(todo)

@@ -92,8 +92,8 @@ wall time on 3 worker processes. What was cut or changed from the idea, and why:
   `ValueError`.
 - Bootstrap and simulation p-values use `(1 + count) / (B + 1)`. Every stochastic function
   takes `seed` (or a `numpy.random.Generator`).
-- No LLM or model API calls. CPU only. At most 3 worker processes, BLAS threads set to 1 in
-  each worker.
+- No LLM or model API calls. CPU only. 3 worker processes by default, at most
+  `os.cpu_count() - 2` (section 13 item 17), BLAS threads set to 1 in each worker.
 - Long jobs: each finished unit goes through `checkpoint.UnitStore` (atomic file per unit,
   skip on rerun, `progress.log`).
 
@@ -273,9 +273,9 @@ Same design as the sibling project tailcheck: `UnitStore(root, manifest)` writes
 as `units/<id>.json` via write-to-temp then `os.replace`; `manifest.json` holds the config
 hash, input-data SHA-256s and package version, and a mismatch refuses to resume unless
 `--force-new`; `progress.log` gets one timestamped line per finished unit (no absolute
-paths). `run_units` uses a `ProcessPoolExecutor` with at most 3 workers, sets
-`OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS` to 1 and uses `threadpoolctl`
-in workers, and writes each result as soon as it arrives.
+paths). `run_units` uses a `ProcessPoolExecutor` with 3 workers by default (section 13
+item 17), sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS` to 1 and uses
+`threadpoolctl` in workers, and writes each result as soon as it arrives.
 
 ## 5. Portfolio application (M7)
 
@@ -765,4 +765,11 @@ quantity, the code docstring says the same.
     "Copyright Eugene F. Fama and Kenneth R. French" and states no licence or
     redistribution terms (checked 2026-11-07), so nothing permits publishing
     month-by-month weighted combinations of its returns under MIT. Committing the panel
-    needs that permission first (`backlog.md`).
+    needs that permission first.
+17. **Worker limit (2026-11-21).** Worker requests used to be clipped silently to 3, so a
+    larger machine ran at laptop speed and the pilot's wall-time projection assumed 3
+    workers. `checkpoint.worker_limit()` is now `max(3, os.cpu_count() - 2)`; `--workers`
+    and `[run] workers` above it are rejected instead of shrunk, and the default stays 3.
+    Unit results do not depend on the worker count (section 9, M5), and the config hash is
+    unchanged, so existing run stores resume. `[run] workers` is validated and hashed but
+    not used: `--workers` decides.

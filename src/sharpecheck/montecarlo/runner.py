@@ -26,7 +26,7 @@ from typing import Any
 import numpy as np
 from scipy import stats
 
-from sharpecheck.checkpoint import MAX_WORKERS, UnitStore, config_hash, run_units
+from sharpecheck.checkpoint import UnitStore, config_hash, run_units, worker_limit
 
 COVERAGE_METHODS = ("iid_normal", "exact_nct", "mertens", "ar1", "hac", "hac_pw", "boot_ts")
 DIFF_METHODS = (
@@ -70,8 +70,8 @@ def validate_config(cfg: dict[str, Any]) -> dict[str, Any]:
     for key in ("name", "seed", "level", "chunk", "run"):
         if key not in cfg:
             raise ValueError(f"config is missing '{key}'")
-    if int(cfg["run"].get("workers", 1)) > MAX_WORKERS:
-        raise ValueError(f"run.workers must be <= {MAX_WORKERS}")
+    if int(cfg["run"].get("workers", 1)) > worker_limit():
+        raise ValueError(f"run.workers must be <= {worker_limit()}")
     if not 0 < float(cfg["level"]) < 1:
         raise ValueError("level must be in (0, 1)")
     if int(cfg["chunk"]) < 1:
@@ -666,7 +666,7 @@ def pilot(
             est = per_unit[pu] / 10 * a["reps"]
         projection += est
         detail[exp] = detail.get(exp, 0.0) + est
-    w = max(1, min(int(workers), MAX_WORKERS))
+    w = max(1, min(int(workers), worker_limit()))
     out = {
         "config": str(Path(config_path).as_posix()),
         "pilot_wall_seconds": round(wall, 1),

@@ -25,8 +25,10 @@ optimised portfolios" application on Ken French data.
   `nan` plus `details["reason"]`; invalid input raises `ValueError`.
 - Bootstrap and simulation p-values use `(1 + count)/(B + 1)`. Every stochastic function
   takes `seed` or a `numpy.random.Generator`.
-- No LLM or model API calls. CPU only. At most 3 worker processes, with BLAS threads set to
-  1 in each worker. Keep memory modest (the machine is shared).
+- No LLM or model API calls. CPU only. 3 worker processes by default (`MAX_WORKERS`);
+  `--workers` may go up to `os.cpu_count() - 2` (`checkpoint.worker_limit`) on a larger
+  machine and fails above that; `[run] workers` in a config is validated but not used.
+  BLAS threads set to 1 in each worker. Keep memory modest (the machine is shared).
 - Long jobs: every finished unit goes through `sharpecheck.checkpoint.UnitStore` (atomic
   file per unit, skip on rerun, `progress.log`). Never keep results only in memory. Keep
   each run under about 45 minutes of wall time; wrap it in `scripts/run_with_retry.py`
@@ -39,7 +41,7 @@ optimised portfolios" application on Ken French data.
 - Scratch files go in `tmp/` (gitignored). Do not create `.bak` copies; use git.
 - No personal names, local user paths or machine details in committed files; scrub logs
   before committing anything derived from them.
-- The repository is public on GitHub; pushes, tags and releases are done by the owner
+- The repository is public on GitHub; pushes, tags and releases are done by the maintainer
   after review.
 - Statistical honesty: report sizes, seeds, versions, data vintage and intervals; apply the
   multiple-testing control DESIGN specifies; never overstate. Before calling anything a
