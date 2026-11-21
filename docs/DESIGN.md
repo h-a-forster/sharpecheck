@@ -30,7 +30,7 @@ At scaffold time (2026-10-23), searches found no Python implementation of the Le
 (2008) HAC or studentized-bootstrap difference test (section 12). Say "to our knowledge"
 whenever this appears in user-facing text.
 
-Out of scope for v0.1: probability of backtest overfitting (CSCV/PBO), Hansen SPA and the
+Out of scope for v0.1 (CSCV/PBO was added afterwards, `docs/pbo.md`): Hansen SPA and the
 Romano-Wolf StepM on mean returns (available in `arch`; our stepdown works on SR
 differences), nonlinear shrinkage, RMT clipping, HERC/NCO, transaction costs, Bayesian SR
 inference, the clustering-based trial counting of LZL (2025), a PyPI release.

@@ -62,6 +62,7 @@ optimised portfolios" application on Ken French data.
 | `src/sharpecheck/compare.py` | JKM, LW HAC, LW bootstrap | done (M3) |
 | `src/sharpecheck/deflated.py` | expected max, DSR, implied N, pFDR/oFDR | done (M4) |
 | `src/sharpecheck/multiple.py` | Holm, BH, Romano-Wolf, MCS wrapper | done (M4) |
+| `src/sharpecheck/pbo.py` | CSCV probability of backtest overfitting (`docs/pbo.md`) | added after 0.1.0 |
 | `src/sharpecheck/montecarlo/` | DGPs, runner, report | M5, M6 |
 | `src/sharpecheck/data.py` | Ken French fetch, cache, parse | M7 |
 | `src/sharpecheck/portfolio/` | allocation rules, rolling backtest | M7 |
