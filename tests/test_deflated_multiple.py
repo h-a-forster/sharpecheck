@@ -117,6 +117,11 @@ def test_dsr_test_defaults() -> None:
     flat = x.copy()
     flat[:, 0] = 0.1
     assert dsr_test(flat).details == {"reason": "zero variance"}
+    # Long constant columns: a plain column mean drifts by more than 1e-14 relative.
+    for t, c in [(1000, 0.3), (2520, 0.01), (2520, 1 / 3), (5000, 0.1)]:
+        flat = rng.standard_normal((t, 3))
+        flat[:, 0] = c
+        assert dsr_test(flat).details == {"reason": "zero variance"}
 
 
 def test_holm_and_bh_hand_examples() -> None:

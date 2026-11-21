@@ -29,7 +29,7 @@ results.
 |---|---|
 | One Sharpe ratio | iid-normal, exact noncentral t, Mertens/Opdyke, AR(1)-adjusted, HAC (QS kernel, Andrews bandwidth, optional prewhitening), studentized circular block bootstrap; PSR (both published variance conventions), MinTRL, critical SR, power, annualization |
 | Two Sharpe ratios | Jobson-Korkie-Memmel, Ledoit-Wolf HAC, Ledoit-Wolf studentized bootstrap, block-size calibration (LW Algorithm 3.1) |
-| Many strategies | deflated Sharpe ratio (Gumbel and exact expected maximum, correlated trials), implied number of trials, pFDR/oFDR, Holm, Benjamini-Hochberg, Romano-Wolf stepdown, model confidence set (via `arch`) |
+| Many strategies | deflated Sharpe ratio (Gumbel and exact expected maximum, correlated trials), implied number of trials, pFDR/oFDR, Holm, Benjamini-Hochberg, Romano-Wolf stepdown, model confidence set (via `arch`), probability of backtest overfitting (CSCV) with stochastic dominance of the selected strategy ([docs/pbo.md](docs/pbo.md)) |
 | Validation | checkpointed Monte Carlo of coverage and size under six return processes, T = 60 to 2520, and a replication of the Ledoit-Wolf (2008) size table |
 | Application | 1/N against minimum-variance (sample and Ledoit-Wolf), inverse-volatility and HRP portfolios on Ken French data, with Romano-Wolf-adjusted tests |
 

@@ -17,6 +17,18 @@ def zero_variance(var: ArrayLike, mean: ArrayLike) -> NDArray[np.bool_]:
     return ~(np.asarray(var) > (1e-14 * np.abs(mean)) ** 2)
 
 
+def corrected_mean(a: FloatArray, axis: int) -> FloatArray:
+    """Mean along ``axis`` with one correction pass (the corrected two-pass algorithm).
+
+    NumPy reduces a strided axis with a running sum whose rounding error grows with its
+    length, so a constant column's plain mean can be off by far more than ``eps * mean``;
+    deviations from it then give a variance that ``zero_variance`` does not recognise.
+    """
+    m = a.mean(axis=axis, keepdims=True)
+    m = m + (a - m).mean(axis=axis, keepdims=True)
+    return np.asarray(np.squeeze(m, axis=axis), dtype=np.float64)
+
+
 def as_float_1d(x: ArrayLike, name: str, min_len: int = 2) -> FloatArray:
     """Return ``x`` as a finite 1-D float64 array of length >= ``min_len`` or raise."""
     a = np.asarray(x, dtype=np.float64)

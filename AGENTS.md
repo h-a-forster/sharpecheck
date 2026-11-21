@@ -28,7 +28,7 @@ optimised portfolios" application on Ken French data.
 - No LLM or model API calls. CPU only. 3 worker processes by default (`MAX_WORKERS`);
   `--workers` may go up to `os.cpu_count() - 2` (`checkpoint.worker_limit`) on a larger
   machine and fails above that; `[run] workers` in a config is validated but not used.
-  BLAS threads set to 1 in each worker. Keep memory modest (the machine is shared).
+  BLAS threads set to 1 in each worker. Keep memory modest.
 - Long jobs: every finished unit goes through `sharpecheck.checkpoint.UnitStore` (atomic
   file per unit, skip on rerun, `progress.log`). Never keep results only in memory. Keep
   each run under about 45 minutes of wall time; wrap it in `scripts/run_with_retry.py`
@@ -180,8 +180,6 @@ Done:
   regenerate byte for byte, LW Table 1 matches the journal PDF. Fixes for constant series,
   `ofdr`, `--json`, the zero bandwidth, unknown experiments, ignored portfolio options and
   the stale README example: `docs/release-notes-0.1.0.md`.
-
-Open work is in `backlog.md`.
 
 Open questions recorded for later milestones:
 - LW 2008 VAR DGPs: "mean 1, variance 1" read as the stationary law (DESIGN 6.3.2). The

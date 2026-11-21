@@ -37,8 +37,7 @@ inference, the clustering-based trial counting of LZL (2025), a PyPI release.
 
 ## 2. Scope review (decisions taken at scaffold time)
 
-Implementation budget: about 4-5 hours of agent time; each study run under 45 minutes of
-wall time on 3 worker processes. What was cut or changed from the idea, and why:
+Run budget: each study run under 45 minutes of wall time on 3 worker processes. What was cut or changed from the idea, and why:
 
 1. **Coverage Monte Carlo first, portfolio second.** The original idea had both as
    headlines. The Monte Carlo is the part nobody has published as a cross-method,

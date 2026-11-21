@@ -20,7 +20,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy import integrate, stats
 
-from sharpecheck._validation import as_float_2d, check_level, zero_variance
+from sharpecheck._validation import as_float_2d, check_level, corrected_mean, zero_variance
 from sharpecheck.results import TestResult
 from sharpecheck.single import psr, sr_variance
 
@@ -132,7 +132,7 @@ def dsr_test(
     """
     x = as_float_2d(trial_returns, "trial_returns", min_rows=3)
     t, n = x.shape
-    mu = x.mean(axis=0)
+    mu = corrected_mean(x, axis=0)
     d = x - mu
     m2 = np.mean(d * d, axis=0)
     if np.any(zero_variance(m2, mu)):

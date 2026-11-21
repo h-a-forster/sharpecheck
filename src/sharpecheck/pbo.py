@@ -20,12 +20,19 @@ import itertools
 import math
 from dataclasses import dataclass
 from fractions import Fraction
+from functools import lru_cache
 from typing import Literal
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from sharpecheck._validation import FloatArray, as_float_2d, zero_variance
+from sharpecheck._validation import (
+    FloatArray,
+    as_float_1d,
+    as_float_2d,
+    corrected_mean,
+    zero_variance,
+)
 
 PboRule = Literal["lt", "le"]
 
@@ -34,8 +41,10 @@ PboRule = Literal["lt", "le"]
 class CscvResult:
     """CSCV output. Arrays are indexed by combination (lexicographic order of IS blocks).
 
-    ``degradation_slope`` and ``degradation_intercept`` are NaN when the IS winner's SR is
-    the same in every combination, because the regression of OOS on IS SR is then undefined.
+    ``sr_is`` and ``sr_oos`` are the IS winner's SRs, ``sr_oos_all`` (C x N) the OOS SRs of
+    every column. ``degradation_slope`` and ``degradation_intercept`` are NaN when the IS
+    winner's SR is the same in every combination, because the regression of OOS on IS SR is
+    then undefined.
     """
 
     pbo: float
@@ -47,6 +56,7 @@ class CscvResult:
     logits: FloatArray
     sr_is: FloatArray
     sr_oos: FloatArray
+    sr_oos_all: FloatArray
     prob_loss: float
     degradation_slope: float
     degradation_intercept: float
@@ -54,13 +64,32 @@ class CscvResult:
 
 def cscv_combinations(n_blocks: int) -> NDArray[np.bool_]:
     """Boolean (C, S) matrix: row c marks the IS blocks of combination c, lexicographic."""
+    return _design(n_blocks)[0].copy()
+
+
+_Halves = tuple[tuple[FloatArray, FloatArray], tuple[FloatArray, FloatArray]]
+
+
+@lru_cache(maxsize=4)
+def _design(n_blocks: int) -> tuple[NDArray[np.bool_], NDArray[np.intp], NDArray[np.intp], _Halves]:
+    """Combination mask, block pairs (b < b') and, for the IS and the OOS half, the (C, S)
+    block indicators and (C, S(S-1)/2) indicators of pairs inside the half. Read-only, cached:
+    they depend on S only (C(16, 8) = 12,870 rows)."""
     if n_blocks < 2 or n_blocks % 2:
         raise ValueError(f"n_blocks must be even and >= 2, got {n_blocks}")
     combos = list(itertools.combinations(range(n_blocks), n_blocks // 2))
-    out = np.zeros((len(combos), n_blocks), dtype=bool)
+    mask = np.zeros((len(combos), n_blocks), dtype=bool)
     for c, blocks in enumerate(combos):
-        out[c, list(blocks)] = True
-    return out
+        mask[c, list(blocks)] = True
+    pairs = list(itertools.combinations(range(n_blocks), 2))
+    first, second = (np.array(p, dtype=np.intp) for p in zip(*pairs, strict=True))
+    halves = tuple(
+        (sel.astype(np.float64), (sel[:, first] & sel[:, second]).astype(np.float64))
+        for sel in (mask, ~mask)
+    )
+    for a in (mask, first, second, *halves[0], *halves[1]):
+        a.flags.writeable = False
+    return mask, first, second, (halves[0], halves[1])
 
 
 def logit_rank(rank: ArrayLike, n: int) -> FloatArray:
@@ -109,31 +138,33 @@ def cscv(returns: ArrayLike, n_blocks: int = 16, rule: PboRule = "lt") -> CscvRe
     t, n = x.shape
     if n < 2:
         raise ValueError(f"returns needs at least 2 columns (strategies), got {n}")
-    mask = cscv_combinations(n_blocks)
+    mask, first, second, (is_half, oos_half) = _design(n_blocks)
     if t % n_blocks:
         raise ValueError(
             f"T = {t} is not divisible by n_blocks = {n_blocks}; trim or pad the sample "
             "explicitly (uneven blocks make IS and OOS halves unequal)"
         )
+    k = n_blocks // 2
     blocks = x.reshape(n_blocks, t // n_blocks, n)
-    # Centre on the column mean before summing squares to keep the variance accurate.
-    centre = x.mean(axis=0)
-    dev = blocks - centre
-    s1 = dev.sum(axis=1)  # (S, N)
-    s2 = (dev * dev).sum(axis=1)
-    half = (n_blocks // 2) * (t // n_blocks)
-    m = mask.astype(np.float64)
+    # Half variance = (within-block sums of squares + between-block term) / half length, with
+    # the between term as a sum of squared pairwise block-mean differences:
+    # sum_b L (m_b - m)^2 = (L / k) sum_{b < b'} (m_b - m_b')^2. Every term is non-negative,
+    # so a half that is constant gets a variance of order (eps * mean)^2, as zero_variance
+    # expects; E[x^2] - E[x]^2 around a common centre would leave eps * E[x^2] of noise.
+    means = corrected_mean(blocks, axis=1)  # (S, N)
+    within = ((blocks - means[:, None, :]) ** 2).sum(axis=1)
+    pair_sq = (means[first] - means[second]) ** 2  # (S(S-1)/2, N)
+    half = k * (t // n_blocks)
 
-    def sharpe(sel: FloatArray) -> FloatArray:
-        mean_dev = sel @ s1 / half
-        var = sel @ s2 / half - mean_dev**2
-        mean = mean_dev + centre
-        if np.any(zero_variance(np.maximum(var, 0.0), mean)):
+    def sharpe(w: FloatArray, both: FloatArray) -> FloatArray:
+        mean = w @ means / k
+        var = w @ within / half + both @ pair_sq / k**2
+        if np.any(zero_variance(var, mean)):
             raise ValueError("a column has zero variance in a CSCV half; its Sharpe is undefined")
         return np.asarray(mean / np.sqrt(var), dtype=np.float64)
 
-    sr_is_all = sharpe(m)
-    sr_oos_all = sharpe(1.0 - m)
+    sr_is_all = sharpe(*is_half)
+    sr_oos_all = sharpe(*oos_half)
     c = mask.shape[0]
     rows = np.arange(c)
     best = np.argmax(sr_is_all, axis=1).astype(np.int64)
@@ -161,7 +192,55 @@ def cscv(returns: ArrayLike, n_blocks: int = 16, rule: PboRule = "lt") -> CscvRe
         logits=logits,
         sr_is=sr_is,
         sr_oos=oos_best,
+        sr_oos_all=sr_oos_all,
         prob_loss=float(np.mean(oos_best < 0)),
         degradation_slope=float(slope),
         degradation_intercept=float(intercept),
+    )
+
+
+@dataclass(frozen=True)
+class StochasticDominance:
+    """Empirical stochastic dominance of ``selected`` over ``benchmark`` (p. 18).
+
+    ``grid`` holds the pooled distinct values, ``cdf_*`` the empirical CDFs there and
+    ``sd2[k]`` the integral of ``F_benchmark - F_selected`` from -inf to ``grid[k]``. The
+    CDFs are step functions, so ``sd2`` is piecewise linear between grid points and constant
+    after the last one: its sign at the grid points decides second-order dominance.
+    """
+
+    grid: FloatArray
+    cdf_selected: FloatArray
+    cdf_benchmark: FloatArray
+    sd2: FloatArray
+    first_order: bool
+    second_order: bool
+
+
+def stochastic_dominance(selected: ArrayLike, benchmark: ArrayLike) -> StochasticDominance:
+    """Does the OOS performance of the selected strategy dominate that of all strategies?
+
+    First order: ``F_selected <= F_benchmark`` everywhere (compared exactly, as counts).
+    Second order: ``SD2(x) = integral_{-inf}^{x} (F_benchmark - F_selected) dt >= 0``
+    everywhere; SD2 is an integral, not the CDF difference itself. Typical use:
+    ``stochastic_dominance(res.sr_oos, res.sr_oos_all.ravel())``.
+    """
+    a = as_float_1d(selected, "selected", min_len=1)
+    b = as_float_1d(benchmark, "benchmark", min_len=1)
+    grid = np.unique(np.concatenate([a, b]))
+    count_a = np.searchsorted(np.sort(a), grid, side="right")
+    count_b = np.searchsorted(np.sort(b), grid, side="right")
+    first = bool(np.all(count_a * b.size <= count_b * a.size))
+    cdf_a = count_a / a.size
+    cdf_b = count_b / b.size
+    sd2 = np.concatenate([[0.0], np.cumsum((cdf_b - cdf_a)[:-1] * np.diff(grid))])
+    # Allow for the rounding of the cumulative sum, relative to the span of the values.
+    tol = 1e-12 * float(grid[-1] - grid[0])
+    return StochasticDominance(
+        grid=grid,
+        cdf_selected=cdf_a,
+        cdf_benchmark=cdf_b,
+        sd2=sd2,
+        first_order=first,
+        second_order=bool(sd2.min() >= -tol),
     )

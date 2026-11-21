@@ -17,12 +17,13 @@ still contains the Monte Carlo/EVT accuracy study (Sec. 7, Figure 6, p. 33). Tes
 | OOS rank | average rank, 1 = worst | ties do not inflate PBO |
 | ω̄, λ | r/(N+1), ln(ω̄/(1−ω̄)), always finite | Alg. 2.3 steps f-g |
 | PBO | `rule="lt"`: λ < 0 (default); `rule="le"`: λ ≤ 0 | φ = ∫_{−∞}^{0} f(λ)dλ (Sec. 3.1); the text does not say whether λ = 0 counts |
-| NaN, constant column, one column | `ValueError` | an undefined SR is never ranked |
+| NaN, one column, a column constant in any IS or OOS half | `ValueError` | an undefined SR is never ranked; half variances are summed from non-negative block terms so a constant half is recognised |
 | Degradation | OLS of OOS SR (response) on IS SR over the selected pairs | p. 14 |
 | Probability of loss | share of combinations with OOS SR of n* < 0 | p. 14 |
+| Stochastic dominance | `stochastic_dominance(res.sr_oos, res.sr_oos_all.ravel())`: first order compared exactly as counts; second order as SD2(x) = ∫_{−∞}^{x} (F_all − F_selected) dt ≥ 0 | p. 18; SD2 is an integral, not the CDF difference |
 
-Not implemented: stochastic dominance (the paper's SD2 is an integral, p. 18), the EVT
-formula (Nov 2014 Eq. 7.2), other metrics.
+Not implemented: the EVT formula (Nov 2014 Eq. 7.2; the tests carry it as an oracle, section
+3), other metrics.
 
 ## 2. Exact results the tests rely on
 
@@ -78,6 +79,15 @@ max(0.02, 3·sd/√K), checks that the mean probability of loss is within 0.02 o
 and records the divergence from Mean_CSCV for the two rows where the paper's CSCV − EVT gap
 exceeds 0.05. The N = 500 row is marked slow.
 
+**The EVT column.** Eq. 7.2 (skilled IS SR ~ N(SR, (freq + SR²/2)/T), OOS SR = 2·SR − IS SR,
+best noise SR Gumbel, moment-matched to the maximum of N − 1 iid N(0, freq/T)) reproduces
+within 0.0036 the 30 Prob_EVT entries with SR > 0 that print above 0.000. Snippet 2 as
+printed takes the maximum over N trials; that version misses the column by up to 0.019 (at
+N = 10), so the published numbers correspond to N − 1. EVT is an approximation, not the CSCV
+expectation: with K = 2000 panels (S = 10, seed 99) the CSCV mean exceeds it by 0.024 at (1, 500, 10) and 0.018
+at (1, 1000, 10), and by at most 0.010 at N = 100. This gap is far smaller than the paper's
+0.06-0.09 above.
+
 Other inconsistencies in the paper text: Def 2.2 uses r < N/2 (gives 1/2 − 1/N on noise for
 even N) while Sec. 3.1 integrates λ up to 0; "four-dimensional mesh of 8,800 elements"
 (p. 25) against ranges giving 9,680; Fig. 3 says both "4%" and "0.04%"; example 2 quotes
@@ -106,20 +116,30 @@ not verified.
 | Degradation | `linregress(IS, OOS)` (L254-256) | OLS of OOS on IS (L163-172) | none | `lm(rn_pairs)` regresses IS on OOS and stores intercept and slope swapped (L131-133; summary.pbo.R L8-9, lattice.pbo.R L326) |
 | SD2 | not integrated, a first-order comparison (L263-278) | none | none | plot only, not integrated (lattice.pbo.R L369-374) |
 
-Consequences, and the test in `tests/test_pbo.py` that guards sharpecheck against each (these
-tests would fail if sharpecheck adopted that convention; they do not test the other packages):
-
-- λ ≤ 0 with ω̄ = r/(N+1) overstates noise PBO for odd N by 1/N relative to λ < 0 (0.6 vs
-  0.4 at N = 5): `test_noise_law_exact_by_enumeration`,
-  `test_median_rank_gives_lambda_zero_and_rule_decides`.
-- ω̄ = r/N makes λ infinite at the best rank and the noise logits asymmetric:
-  `test_logits_finite_at_extremes`.
-- Uneven or truncated blocks make IS and OOS unequal or lose rows: `test_refusals_are_loud`,
-  `test_combination_count_and_split_integrity`.
-- Min-rank on ties inflates PBO (all-tied OOS gives PBO 1): `test_ties_use_average_rank`.
-- NaN or constant columns ranked silently push PBO down: `test_refusals_are_loud`.
-- Reversed regression (IS on OOS) or swapped coefficients:
-  `test_degradation_recovers_planted_line`.
+Section 5 maps each of these divergences to the test that guards sharpecheck against it.
 
 A cross-implementation harness that runs the four packages on identical matrices would need
 those packages vetted and installed in an isolated environment; that has not been done.
+
+## 5. Reference test battery
+
+Thirteen checks, each aimed at a convention or a divergence above. They guard sharpecheck
+against adopting that convention; they do not test the other packages. All are in
+`tests/test_pbo.py`, use fixed seeds and state their tolerance; "slow" tests run with
+`--runslow`. K is the number of simulated panels, sd the spread of one panel's PBO (D2).
+
+| # | Test | What it checks | Guards against |
+|---|---|---|---|
+| 1 | `test_raw_noise_mean_even_n` | iid noise, T = 1008, N = 10, S = 16, K = 200: mean PBO within 3·0.23/√200 = 0.049 of 1/2; sd in (0.18, 0.3) | Def 2.2's strict r < N/2 (mean 0.4), off-by-one thresholds |
+| 2 | `test_noise_law_exact_by_enumeration`, `test_noise_pbo_table`, `test_median_rank_gives_lambda_zero_and_rule_decides`, `test_logits_finite_at_extremes` | odd N noise law exactly (1/2 − 1/(2N) for λ < 0, 1/2 + 1/(2N) for λ ≤ 0); λ = 0 at r = (N+1)/2 classified by `rule`; λ finite at r = 1 and r = N | λ ≤ 0 with ω̄ = r/(N+1) (pypbo, fynance, sharpebench); ω̄ = r/N (R `pbo`, λ = +∞) |
+| 3 | `test_paper_generator_sr0_is_one` | paper generator, SR = 0, T = 1000, N = 100: PBO > 0.99 (D3) | ignoring the full-sample constraint (gives about 1/2); a flipped rank direction (about 0) |
+| 4 | `test_figure6_prob_evt` | nine Figure 6 rows, S = 10, K = 100, seed 12345: mean PBO within max(0.02, 3·sd/√K) of Prob_EVT; Mean_CSCV divergence recorded (section 3) | wrong metric, split or argmax |
+| 5 | `test_evt_oracle_matches_paper_prob_evt`, `test_cscv_mean_matches_evt_oracle` | Eq. 7.2 reproduces the 30 non-zero SR > 0 Prob_EVT entries within 0.004; CSCV mean within 0.025 + 3·sd/√K of it on SR ∈ {1, 2} × N ∈ {10, 100} × T ∈ {500, 1000}, K = 100, another seed | the same errors, independently of the paper's table and of one seed |
+| 6 | `test_figure6_prob_evt` | mean probability of loss within 0.02 of mean PBO under the paper generator (D3) | sign or threshold errors in the probability of loss |
+| 7 | `test_combination_count_and_split_integrity`, `test_matches_direct_loop`, `test_refusals_are_loud` | 12,870 combinations at S = 16, each block IS in half of them; IS and OOS SRs equal a direct loop over `np.split` blocks; T % S ≠ 0 refused | dropped leading rows (pypbo), overlapping blocks (R `pbo`), uneven halves (fynance, sharpebench), the "12,780" count |
+| 8 | `test_ties_use_average_rank`, `test_refusals_are_loud` | n* tied with the whole OOS field gets rank (N+1)/2 and λ = 0; an all-constant panel is refused | min rank on ties (sharpebench; all-tied OOS gives PBO 1) |
+| 9 | `test_refusals_are_loud`, `test_column_constant_in_one_half_is_refused` | NaN, a constant column, or a column constant over one CSCV half raise `ValueError`; a tiny real variance does not | NaN ranked best (pypbo, fynance, R `pbo`), ±1e6 or 0 for zero std (fynance, sharpebench), a near-zero half variance ranked as a huge SR |
+| 10 | `test_degradation_recovers_planted_line`, `test_degradation_nan_when_is_winner_sr_is_constant` | slope and intercept equal the OLS fit of OOS (response) on IS; slope about −1 under the SR = 0 generator; NaN when undefined | the reversed regression and swapped coefficients of R `pbo` |
+| 11 | `test_second_order_dominance_is_an_integral`, `test_dominance_on_cscv_output` | a mean-preserving spread: F_selected > F_all on [0, 1) yet SD2 ≥ 0, so second order holds and first order fails; the reverse fails both | SD2 as the CDF difference, not integrated (pypbo, R `pbo` plots) |
+| 12 | `test_permutation_and_block_reversal_invariance` | permuting columns or reversing the block order leaves PBO unchanged | order-dependent combinations or tie-breaking |
+| 13 | `test_noise_sd_at_n100_s16` (slow) | iid noise, N = 100, S = 16, K = 200: sd in (0.13, 0.19), mean within 3·0.16/√200 of 1/2 | quoting the binomial 1/(2√C) = 0.0044 as the error of one PBO estimate |

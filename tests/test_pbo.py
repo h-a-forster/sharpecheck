@@ -8,8 +8,16 @@ from fractions import Fraction
 
 import numpy as np
 import pytest
+from scipy import integrate, stats
 
-from sharpecheck.pbo import cscv, cscv_combinations, logit_rank, noise_pbo
+from sharpecheck.deflated import EULER_GAMMA, max_normal_moments
+from sharpecheck.pbo import (
+    cscv,
+    cscv_combinations,
+    logit_rank,
+    noise_pbo,
+    stochastic_dominance,
+)
 
 FREQ = 365.25 * 5 / 7
 
@@ -25,6 +33,30 @@ def _paper_panel(rng: np.random.Generator, t: int, n: int, sr_case: float) -> np
     x = (x - x.mean(axis=0)) / x.std(axis=0) / math.sqrt(FREQ)
     x[:, -1] += sr_case / FREQ
     return x
+
+
+def _evt_pbo(sr: float, t: int, n: int) -> float:
+    """Nov 2014 Eq. 7.2, an approximation to PBO under the generator above (annualised SRs).
+
+    The skilled IS SR is N(SR, sigma_c^2) with sigma_c^2 = (freq + SR^2 / 2) / T (T, not T/2:
+    the full-sample constraint halves the variance), its OOS SR is 2 SR - IS SR, and the best
+    of the N - 1 noise columns is Gumbel, moment-matched to the maximum of N - 1 iid
+    N(0, freq / T). PBO = phi_1 + phi_2 with
+    phi_1 = int_{-inf}^{2 SR} N(x; SR, sigma_c) (1 - G(max(0, x))) dx and
+    phi_2 = 1 - Phi(SR / sigma_c).
+    """
+    sigma_c = math.sqrt((FREQ + sr * sr / 2) / t)
+    sigma_0 = math.sqrt(FREQ / t)
+    mean_max, var_max = max_normal_moments(n - 1)
+    beta = sigma_0 * math.sqrt(var_max) * math.sqrt(6) / math.pi
+    alpha = sigma_0 * mean_max - EULER_GAMMA * beta
+
+    def integrand(x: float) -> float:
+        gumbel = math.exp(-math.exp(-(max(0.0, x) - alpha) / beta))
+        return float(stats.norm.pdf(x, sr, sigma_c)) * (1.0 - gumbel)
+
+    phi1 = integrate.quad(integrand, sr - 12 * sigma_c, 2 * sr, points=[0.0], limit=200)[0]
+    return float(phi1 + stats.norm.sf(sr / sigma_c))
 
 
 @pytest.mark.parametrize("n", [2, 3, 4, 5, 6])
@@ -112,8 +144,31 @@ def test_refusals_are_loud() -> None:
     x[:, 1] = 0.01  # constant positive column: SR undefined, never ranked best
     with pytest.raises(ValueError, match="zero variance"):
         cscv(x, n_blocks=10)
+    # All columns constant: every SR is undefined; a min-rank rule would report PBO 1.
+    with pytest.raises(ValueError, match="zero variance"):
+        cscv(np.tile([0.01, 0.02, -0.01], (100, 1)), n_blocks=10)
     with pytest.raises(ValueError, match="rule"):
         cscv(rng.standard_normal((100, 5)), n_blocks=10, rule="lte")  # type: ignore[arg-type]
+
+
+def test_column_constant_in_one_half_is_refused() -> None:
+    # Constant over S/2 blocks only, so the full-sample variance is positive but the SR of
+    # that half is undefined. It must be refused, not ranked with an SR of order 1e5-1e14
+    # (the variance of a constant half has to come out as zero up to rounding).
+    rng = np.random.default_rng(0)
+    for t, s in [(1000, 2), (20000, 4), (1600, 16)]:
+        for _ in range(15):
+            x = rng.standard_normal((t, 4)) * 0.01
+            nb = t // s
+            c = rng.choice([-1, 1]) * 10 ** rng.uniform(-6, 3)
+            for b in rng.choice(s, s // 2, replace=False):
+                x[b * nb : (b + 1) * nb, 1] = c
+            with pytest.raises(ValueError, match="zero variance"):
+                cscv(x, n_blocks=s)
+    # A tiny but real variance is not refused.
+    x = rng.standard_normal((1600, 4)) * 0.01
+    x[:, 1] = 0.01 + 1e-10 * rng.standard_normal(1600)
+    assert cscv(x, n_blocks=16).n_combinations == 12870
 
 
 def test_matches_direct_loop() -> None:
@@ -128,7 +183,9 @@ def test_matches_direct_loop() -> None:
         sout = xout.mean(0) / xout.std(0)
         k = int(np.argmax(sin))
         assert res.best_is[c] == k
+        assert res.sr_is[c] == pytest.approx(sin[k], rel=1e-12)
         assert res.sr_oos[c] == pytest.approx(sout[k], rel=1e-12)
+        assert res.sr_oos_all[c] == pytest.approx(sout, rel=1e-12)
         assert res.rank_oos[c] == 1 + np.sum(sout < sout[k])
 
 
@@ -175,11 +232,13 @@ def test_paper_generator_sr0_is_one() -> None:
 
 
 def test_raw_noise_mean_even_n() -> None:
-    # iid noise, N even: E[PBO] = 1/2 exactly; sd of one panel ~0.28 at N = 10 (D2).
+    # iid noise, N even: E[PBO] = 1/2 exactly under every rank convention except Def 2.2's
+    # r < N/2 (1/2 - 1/N = 0.4). One panel's sd is about 0.23 at N = 10, S = 16 (D2), so
+    # K = 200 panels give a tolerance of 3 * 0.23 / sqrt(200) = 0.049.
     rng = np.random.default_rng(12345)
-    vals = [cscv(rng.standard_normal((400, 10)), n_blocks=8).pbo for _ in range(150)]
-    assert abs(np.mean(vals) - 0.5) < 3 * 0.3 / math.sqrt(150)
-    assert 0.18 < np.std(vals) < 0.4  # far above the binomial 1/(2 sqrt(70)) = 0.06
+    vals = [cscv(rng.standard_normal((1008, 10)), n_blocks=16).pbo for _ in range(200)]
+    assert abs(np.mean(vals) - 0.5) < 3 * 0.23 / math.sqrt(200)
+    assert 0.18 < np.std(vals) < 0.3  # far above the binomial 1/(2 sqrt(12870)) = 0.0044
 
 
 # Nov 2014 Fig. 6 (p. 33): (SR, T, N, Prob_EVT, paper Mean_CSCV). S = 10, K = 100 panels.
@@ -219,3 +278,72 @@ def test_noise_sd_at_n100_s16() -> None:
     vals = np.array([cscv(rng.standard_normal((1008, 100)), n_blocks=16).pbo for _ in range(200)])
     assert abs(vals.mean() - 0.5) < 3 * 0.16 / math.sqrt(200)
     assert 0.13 < vals.std() < 0.19
+
+
+# Nov 2014 Fig. 6 (p. 33), Prob_EVT column: (SR, T, N, Prob_EVT).
+FIG6_EVT = [
+    (1, 500, 500, 0.994), (1, 1000, 500, 0.870), (1, 2500, 500, 0.476),
+    (1, 500, 100, 0.926), (1, 1000, 100, 0.713), (1, 2500, 100, 0.288),
+    (1, 500, 50, 0.859), (1, 1000, 50, 0.626), (1, 2500, 50, 0.220),
+    (1, 500, 10, 0.608), (1, 1000, 10, 0.360), (1, 2500, 10, 0.086),
+    (2, 500, 500, 0.601), (2, 1000, 500, 0.204), (2, 2500, 500, 0.002),
+    (2, 500, 100, 0.405), (2, 1000, 100, 0.099), (2, 2500, 100, 0.001),
+    (2, 500, 50, 0.312), (2, 1000, 50, 0.066), (2, 500, 10, 0.137), (2, 1000, 10, 0.023),
+    (3, 500, 500, 0.148), (3, 1000, 500, 0.005), (3, 500, 100, 0.068), (3, 1000, 100, 0.002),
+    (3, 500, 50, 0.045), (3, 1000, 50, 0.001), (3, 500, 10, 0.015), (3, 1000, 10, 0.001),
+]  # fmt: skip
+
+
+def test_evt_oracle_matches_paper_prob_evt() -> None:
+    # The oracle reproduces every printed Prob_EVT within 0.0036 (rounding to 3 decimals is
+    # 0.0005 of it). With the maximum of N draws instead of N - 1 the error reaches 0.019
+    # at N = 10, so the published column uses N - 1.
+    errors = [abs(_evt_pbo(sr, t, n) - evt) for sr, t, n, evt in FIG6_EVT]
+    assert max(errors) < 0.004
+
+
+@pytest.mark.parametrize("sr", [1, 2])
+@pytest.mark.parametrize("n", [10, 100])
+@pytest.mark.parametrize("t", [500, 1000])
+def test_cscv_mean_matches_evt_oracle(sr: float, n: int, t: int) -> None:
+    # Independent check of the metric, split and argmax against Eq. 7.2, on a seed
+    # independent of test_figure6_prob_evt. EVT is an approximation: with K = 2000 panels
+    # (S = 10, seed 99) CSCV - EVT measured +0.024 at (1, 500, 10), +0.018 at (1, 1000, 10),
+    # +0.006 at (2, 500, 10), -0.002 at (2, 1000, 10) and at most +0.010 for N = 100.
+    # Tolerance: that model error (0.025) plus 3 Monte Carlo standard errors.
+    rng = np.random.default_rng(2024)
+    k = 100
+    vals = np.array([cscv(_paper_panel(rng, t, n, sr), n_blocks=10).pbo for _ in range(k)])
+    assert abs(vals.mean() - _evt_pbo(sr, t, n)) < 0.025 + 3 * vals.std() / math.sqrt(k)
+
+
+def test_second_order_dominance_is_an_integral() -> None:
+    # Selected {0, 0} against benchmark {-1, 1}: a mean-preserving spread. F_selected exceeds
+    # F_benchmark on [0, 1), so there is no first-order dominance, but the integral of
+    # F_benchmark - F_selected is 0.5 at 0 and 0 from 1 on, never negative: second order
+    # holds. The CDF difference itself (the "SD2" of pypbo and R pbo) is negative on [0, 1).
+    sd = stochastic_dominance([0.0, 0.0], [-1.0, 1.0])
+    assert sd.grid.tolist() == [-1.0, 0.0, 1.0]
+    assert sd.sd2.tolist() == [0.0, 0.5, 0.0]
+    assert not sd.first_order and sd.second_order
+    assert np.any(sd.cdf_benchmark - sd.cdf_selected < 0)
+    # Reversed: the spread does not dominate the point mass at second order.
+    rev = stochastic_dominance([-1.0, 1.0], [0.0, 0.0])
+    assert rev.sd2.tolist() == [0.0, -0.5, 0.0]
+    assert not rev.first_order and not rev.second_order
+    # A shift up dominates at both orders; first order is compared exactly, as counts.
+    up = stochastic_dominance([0.5, 1.5, 2.5], [0.0, 1.0, 2.0])
+    assert up.first_order and up.second_order
+    assert stochastic_dominance([1.0, 2.0], [1.0, 2.0]).first_order
+
+
+def test_dominance_on_cscv_output() -> None:
+    # Paper generator with SR = 0: the IS winner is the OOS loser, so its OOS SRs are
+    # dominated by those of all strategies at both orders.
+    res = cscv(_paper_panel(np.random.default_rng(5), 1000, 50, 0.0), n_blocks=10)
+    sd = stochastic_dominance(res.sr_oos, res.sr_oos_all.ravel())
+    assert not sd.first_order and not sd.second_order
+    # A strongly skilled column (SR 3, T = 1000) is selected and stays ahead out of sample.
+    res = cscv(_paper_panel(np.random.default_rng(5), 1000, 50, 3.0), n_blocks=10)
+    sd = stochastic_dominance(res.sr_oos, res.sr_oos_all.ravel())
+    assert sd.first_order and sd.second_order
